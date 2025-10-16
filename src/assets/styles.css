@@ -1,0 +1,128 @@
+/* ==========================================
+   Basic, Readable Styles
+   Palette: soft neutrals, high readability
+   Reduced gradients and animations for clarity
+   ========================================== */
+
+:root {
+    --primary-color: #2563eb; /* soft blue */
+    --secondary-color: #6b7280; /* gray-500 */
+    --bg-color: #f7fafc; /* very light */
+    --card-bg: #ffffff; /* white cards */
+    --muted: #6b7280;
+    --success-color: #16a34a;
+    --danger-color: #dc2626;
+    --border-radius: 10px;
+    --shadow-sm: 0 4px 8px rgba(20, 24, 35, 0.06);
+    --nav-height: 64px;
+    --footer-height: 72px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background: var(--bg-color);
+    color: #0f172a; /* dark slate */
+    -webkit-font-smoothing: antialiased;
+    /* always show vertical scrollbar to prevent layout shift */
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Layout helpers */
+.page-container { 
+    padding-bottom: 24px; 
+    /* ensure content fills viewport (prevent white gap at bottom) */
+    min-height: calc(100vh - var(--nav-height) - var(--footer-height));
+    padding-top: 16px; /* avoid margin collapse on first child */
+}
+.container-fluid { padding-left: 16px; padding-right: 16px; }
+
+/* Navbar */
+.navbar-custom {
+    background: var(--card-bg);
+    border-bottom: 1px solid #e6edf3;
+    padding: 0.5rem 1rem;
+    /* keep navbar fixed at top to avoid layout jumps when scrolling */
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    height: var(--nav-height);
+    display: flex;
+    align-items: center;
+}
+.navbar-brand-custom { color: var(--primary-color) !important; font-weight: 700; }
+.nav-link-custom { color: var(--secondary-color) !important; padding: 0.5rem 0.75rem !important; }
+.nav-link-custom:hover { color: var(--primary-color) !important; }
+
+/* Hero */
+.hero-section {
+    background: var(--card-bg);
+    border-radius: calc(var(--border-radius) * 1.2);
+    padding: 2.5rem 1.5rem;
+    color: #071133;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Cards */
+.stat-card, .feature-card, .card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid #e6edf3;
+    box-shadow: none;
+}
+.stat-card .card-body, .feature-card .card-body, .card-body { padding: 1.25rem; }
+
+/* Slight lift on hover for emphasis */
+.stat-card:hover, .feature-card:hover { box-shadow: var(--shadow-sm); transform: translateY(-4px); }
+
+/* Login/Register pages: neutral background */
+.login-page, .register-page { background: linear-gradient(180deg, var(--bg-color), #eef6ff); padding: 3rem 0; }
+.login-card { border-radius: calc(var(--border-radius) * 1.2); box-shadow: var(--shadow-sm); }
+.login-card .card-body { padding: 2rem; }
+
+/* Forms */
+.form-control, .form-select, input[type="text"], input[type="password"], input[type="email"] {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid #d6e4f0;
+    background: #fff;
+    color: #071133;
+}
+.form-control:focus { outline: 2px solid rgba(37,99,235,0.12); border-color: #4f46e5; }
+
+/* Buttons */
+.btn { border-radius: 8px; padding: 0.6rem 1rem; font-weight: 600; }
+.btn-primary { background: var(--primary-color); border: none; color: white; }
+.btn-secondary { background: transparent; color: var(--secondary-color); border: 1px solid #e6edf3; }
+
+/* Card headers */
+.card-header { background: transparent; border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; }
+.card-header h5 { margin: 0; font-weight: 600; color: #071133; }
+
+/* Pills / Navs */
+.nav-pills .nav-link { border-radius: 8px; color: var(--secondary-color); }
+.nav-pills .nav-link.active { color: var(--primary-color); background: rgba(37,99,235,0.06); }
+
+/* Alerts */
+.alert { border-radius: 8px; }
+
+/* Footer */
+footer { padding: 1.5rem 0; color: var(--secondary-color); background: transparent; }
+
+/* Utility */
+.text-muted { color: var(--muted); }
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+    .hero-section { padding: 1.5rem; }
+    .login-card .card-body { padding: 1.25rem; }
+}
+

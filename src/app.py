@@ -1,0 +1,64 @@
+import dash
+from dash import html, dcc, Input, Output, State
+import dash_bootstrap_components as dbc
+from flask import session
+import os
+
+# Import pages
+from pages import home, login, register, account, settings
+
+# Initialize app with Bootstrap theme
+app = dash.Dash(
+    __name__,
+    suppress_callback_exceptions=True,
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP, 
+        dbc.icons.FONT_AWESOME,
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    ],
+    assets_folder='assets',
+    meta_tags=[
+        {"name": "viewport", "content": "width=device-width, initial-scale=1"}
+    ]
+)
+
+# Server for session management
+server = app.server
+server.config['SECRET_KEY'] = os.urandom(24)
+
+# Main layout
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    dcc.Store(id='session-store', storage_type='session'),
+    html.Div(id='page-content')
+])
+
+# Routing callback
+@app.callback(
+    Output('page-content', 'children'),
+    Input('url', 'pathname'),
+    State('session-store', 'data')
+)
+def display_page(pathname, session_data):
+    # Check authentication for protected pages
+    is_authenticated = session_data and session_data.get('authenticated', False)
+    
+    if pathname == '/login':
+        return login.layout
+    elif pathname == '/register':
+        return register.layout
+    elif pathname == '/account':
+        if is_authenticated:
+            return account.layout
+        else:
+            return login.layout
+    elif pathname == '/settings':
+        if is_authenticated:
+            return settings.layout
+        else:
+            return login.layout
+    else:
+        return home.layout
+
+if __name__ == '__main__':
+    app.run(debug=True, host='127.0.0.1', port=8050)
