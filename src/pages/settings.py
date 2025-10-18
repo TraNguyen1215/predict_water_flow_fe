@@ -2,6 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash
 from components.navbar import create_navbar
+from utils.auth import change_password
 
 layout = html.Div([
     create_navbar(is_authenticated=True),
@@ -345,7 +346,45 @@ def update_settings_content(notif_clicks, sec_clicks, appear_clicks, data_clicks
      Input('save-security-settings', 'n_clicks'),
      Input('save-appearance-settings', 'n_clicks'),
      Input('save-data-settings', 'n_clicks')],
+    [State('current-password', 'value'),
+     State('new-password', 'value'),
+     State('confirm-new-password', 'value'),
+     State('session-store', 'data')],
     prevent_initial_call=True
 )
-def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks):
+def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks,
+                  current_password, new_password, confirm_new_password, session_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Handle security update (change password)
+    if button_id == 'save-security-settings':
+        # Basic validation
+        if not current_password or not new_password or not confirm_new_password:
+            return dbc.Alert("Vui lòng nhập đầy đủ thông tin mật khẩu.", color="warning", dismissable=True)
+
+        if new_password != confirm_new_password:
+            return dbc.Alert("Mật khẩu mới và xác nhận không khớp.", color="danger", dismissable=True)
+
+        if len(new_password) < 6:
+            return dbc.Alert("Mật khẩu phải có ít nhất 6 ký tự.", color="warning", dismissable=True)
+
+        # Determine username from session-store
+        token = None
+        if session_data and isinstance(session_data, dict):
+            token = session_data.get('token')
+
+        if not token:
+            return dbc.Alert("Không tìm thấy thông tin đăng nhập (token). Vui lòng đăng nhập lại.", color="danger", dismissable=True)
+
+        success, message = change_password(current_password, new_password, token)
+        if success:
+            return dbc.Alert(message, color="success", dismissable=True, duration=4000)
+        else:
+            return dbc.Alert(message, color="danger", dismissable=True)
+
+    # For other save buttons, just show a generic saved message
     return dbc.Alert("Cài đặt đã được lưu thành công!", color="success", dismissable=True, duration=3000)

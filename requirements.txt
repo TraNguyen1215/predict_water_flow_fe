@@ -4,3 +4,4 @@ pandas
 plotly
 flask-login
 werkzeug
+requests

@@ -113,13 +113,13 @@ layout = html.Div([
 
 @callback(
     [Output('register-message', 'children'),
-     Output('url', 'pathname', allow_duplicate=True)],
-    Input('register-btn', 'n_clicks'),
+        Output('url', 'pathname', allow_duplicate=True)],
+        Input('register-btn', 'n_clicks'),
     [State('register-username', 'value'),
-     State('register-email', 'value'),
-     State('register-password', 'value'),
-     State('register-confirm-password', 'value'),
-     State('accept-terms', 'value')],
+        State('register-email', 'value'),
+        State('register-password', 'value'),
+        State('register-confirm-password', 'value'),
+        State('accept-terms', 'value')],
     prevent_initial_call=True
 )
 def register_new_user(n_clicks, username, email, password, confirm_password, accept_terms):

@@ -101,12 +101,13 @@ def login_user(n_clicks, username, password):
     if not username or not password:
         return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update
     
-    success, message = authenticate_user(username, password)
+    success, message, token = authenticate_user(username, password)
     
     if success:
         session_data = {
             'authenticated': True,
-            'username': username
+            'username': username,
+            'token': token
         }
         return dbc.Alert(message, color="success", dismissable=True), session_data, '/'
     else:
