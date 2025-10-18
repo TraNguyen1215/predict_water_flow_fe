@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash
 from components.navbar import create_navbar
-from utils.auth import register_user
+from utils.auth import register_user, authenticate_user
 
 layout = html.Div([
     create_navbar(is_authenticated=False),
@@ -113,6 +113,7 @@ layout = html.Div([
 
 @callback(
     [Output('register-message', 'children'),
+        Output('session-store', 'data', allow_duplicate=True),
         Output('url', 'pathname', allow_duplicate=True)],
         Input('register-btn', 'n_clicks'),
     [State('register-username', 'value'),
@@ -136,8 +137,17 @@ def register_new_user(n_clicks, username, email, password, confirm_password, acc
         return dbc.Alert("Mật khẩu phải có ít nhất 6 ký tự!", color="warning", dismissable=True), dash.no_update
     
     success, message = register_user(username, email, password)
-    
+
     if success:
-        return dbc.Alert(message + " Đang chuyển đến trang đăng nhập...", color="success", dismissable=True), '/login'
+        auth_success, auth_message, token = authenticate_user(username, password)
+        if auth_success:
+            session_data = {
+                'authenticated': True,
+                'username': username,
+                'token': token
+            }
+            return dbc.Alert(message + " Đăng ký thành công!", color="success", dismissable=True), session_data, '/account'
+        else:
+            return dbc.Alert(message + " Tuy nhiên tự động đăng nhập thất bại. Vui lòng đăng nhập.", color="warning", dismissable=True), dash.no_update, '/login'
     else:
-        return dbc.Alert(message, color="danger", dismissable=True), dash.no_update
+        return dbc.Alert(message, color="danger", dismissable=True), dash.no_update, dash.no_update

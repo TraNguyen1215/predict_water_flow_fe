@@ -26,7 +26,7 @@ def create_navbar(is_authenticated=False):
             html.A(
                 dbc.Row([
                     dbc.Col(html.I(className="fas fa-water fa-2x text-primary")),
-                    dbc.Col(dbc.NavbarBrand("Water Flow Predict", className="ms-2 navbar-brand-custom")),
+                    dbc.Col(dbc.NavbarBrand("Dự Đoán Lưu Lượng Nước", className="ms-2 navbar-brand-custom")),
                 ], align="center", className="g-0"),
                 href="/",
                 style={"textDecoration": "none"}

@@ -6,6 +6,7 @@ import os
 
 # Import pages
 from pages import home, login, register, account, settings
+from components.navbar import create_navbar
 
 # Initialize app with Bootstrap theme
 app = dash.Dash(
@@ -40,25 +41,33 @@ app.layout = html.Div([
     State('session-store', 'data')
 )
 def display_page(pathname, session_data):
-    # Check authentication for protected pages
+    
     is_authenticated = session_data and session_data.get('authenticated', False)
     
     if pathname == '/login':
-        return login.layout
+        page = login.layout
     elif pathname == '/register':
-        return register.layout
+        page = register.layout
     elif pathname == '/account':
         if is_authenticated:
-            return account.layout
+            page = account.layout
         else:
-            return login.layout
+            page = login.layout
     elif pathname == '/settings':
         if is_authenticated:
-            return settings.layout
+            page = settings.layout
         else:
-            return login.layout
+            page = login.layout
     else:
-        return home.layout
+        page = home.layout
+
+    try:
+        if hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
+            page.children[0] = create_navbar(is_authenticated)
+    except Exception:
+        pass
+
+    return page
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=8050)

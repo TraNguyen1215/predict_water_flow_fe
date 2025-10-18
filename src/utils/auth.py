@@ -2,7 +2,6 @@ from typing import Tuple, Dict, Any, Optional
 import os
 import requests
 
-# Default API base provided by the user
 URL_API_BASE = os.environ.get('URL_API_BASE', 'http://127.0.0.1:8000/api/v1')
 
 

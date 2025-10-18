@@ -288,8 +288,8 @@ layout = html.Div([
         dbc.Container([
             dbc.Row([
                 dbc.Col([
-                    html.P("© 2025 Water Flow Predict. All rights reserved.",
-                          className="text-center text-muted mb-0")
+                html.P("© 2025 Dự Đoán Lưu Lượng Nước. Bảo lưu mọi quyền.",
+                    className="text-center text-muted mb-0")
                 ], width=12)
             ])
         ])

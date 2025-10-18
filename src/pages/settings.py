@@ -213,20 +213,7 @@ appearance_content = dbc.Card([
                 ], width=12)
             ]),
             
-            dbc.Row([
-                dbc.Col([
-                    html.H6("Ngôn ngữ", className="mb-3"),
-                    dbc.Select(
-                        id='language-selection',
-                        options=[
-                            {'label': 'Tiếng Việt', 'value': 'vi'},
-                            {'label': 'English', 'value': 'en'},
-                        ],
-                        value='vi',
-                        className="mb-4"
-                    ),
-                ], md=6)
-            ]),
+            # Ngôn ngữ đã được cố định là Tiếng Việt - tùy chọn ngôn ngữ đã loại bỏ
             
             dbc.Row([
                 dbc.Col([

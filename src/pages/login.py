@@ -90,7 +90,7 @@ layout = html.Div([
 
 @callback(
     [Output('login-message', 'children'),
-     Output('session-store', 'data'),
+     Output('session-store', 'data', allow_duplicate=True),
      Output('url', 'pathname')],
     Input('login-btn', 'n_clicks'),
     [State('login-username', 'value'),
@@ -109,6 +109,6 @@ def login_user(n_clicks, username, password):
             'username': username,
             'token': token
         }
-        return dbc.Alert(message, color="success", dismissable=True), session_data, '/'
+        return dbc.Alert(message, color="success", dismissable=True), session_data, '/account'
     else:
         return dbc.Alert(message, color="danger", dismissable=True), dash.no_update, dash.no_update
