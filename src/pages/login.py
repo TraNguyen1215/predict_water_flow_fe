@@ -133,6 +133,8 @@ layout = html.Div(
     prevent_initial_call=True
 )
 def login_user(n_clicks, username, password):
+    if not n_clicks:
+        raise PreventUpdate
 
     if not username or not password:
         return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update

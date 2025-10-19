@@ -2,6 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash
 from utils.auth import register_user, authenticate_user
+from dash.exceptions import PreventUpdate
 
 
 layout = html.Div(
@@ -13,11 +14,11 @@ layout = html.Div(
             
             children=[
                 html.Div(
-                    className="auth-panel left-panel",
+                    className="auth-panel left-panel d-none d-md-flex p-4",
                     children=[
                         html.Img(
                             src="/assets/logo_waterflow.png",
-                            style={"width": "90px", "background-color": "white", "border-radius": "50%"},
+                            style={"width": "90px", "border-radius": "50%", "background-color": "white"},
                             className="mb-3"
                         ),
                         html.H2("HỆ THỐNG DỰ BÁO LƯU LƯỢNG NƯỚC", className="fw-bold text-white mb-3"),
@@ -82,21 +83,12 @@ layout = html.Div(
                                                 label='Tôi đồng ý với điều khoản sử dụng',
                                                 value=False,
                                                 className="mb-2"
-                                            ), width=8
+                                            ), width=9
                                         ),
-                                        dbc.Col(
-                                            dbc.Button(
-                                                "Điều khoản",
-                                                id='terms-link',
-                                                color='link',
-                                                className='p-0 small text-decoration-none float-end',
-                                                style={"color": "#023E73"}
-                                            ), width=4
-                                        )
                                     ], className="mb-3"),
 
                                     dbc.Button(
-                                        [html.I(className="fas fa-user-plus me-2"), "Đăng Ký"],
+                                        [html.I(className="fas me-2"), "Đăng Ký"],
                                         id='register-btn',
                                         className="w-100 py-2 fw-bold rounded-pill",
                                         size="lg",
@@ -107,7 +99,7 @@ layout = html.Div(
 
                                     html.P(
                                         ["Đã có tài khoản? ",
-                                         html.A("Đăng nhập ngay", href="/login", className="fw-bold", style={"text-decoration": "none", "color": "#023E73"})],
+                                            html.A("Đăng nhập ngay", href="/login", className="fw-bold", style={"text-decoration": "none", "color": "#023E73"})],
                                         className="text-center mb-0"
                                     )
                                 ])
@@ -135,6 +127,9 @@ layout = html.Div(
     prevent_initial_call=True
 )
 def register_new_user(n_clicks, username, fullname, password, confirm_password, accept_terms):
+    if not n_clicks:
+        raise PreventUpdate
+
     if not username or not fullname or not password or not confirm_password:
         return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update
 
