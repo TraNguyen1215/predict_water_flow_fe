@@ -6,8 +6,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from components.navbar import create_navbar
+from components.weather_widget import create_weather_widget
+from dash.exceptions import PreventUpdate
+import requests
+import json
 
-# Generate sample data
 def generate_sample_data():
     dates = pd.date_range(start='2025-01-01', end='2025-10-16', freq='D')
     np.random.seed(42)
@@ -30,19 +33,9 @@ layout = html.Div([
     create_navbar(is_authenticated=False),
     
     dbc.Container([
-        # Hero Section
         dbc.Row([
             dbc.Col([
-                html.Div([
-                    html.H1("Hệ Thống Dự Đoán Lưu Lượng Nước", 
-                           className="display-4 fw-bold text-primary mb-3"),
-                    html.P("Giám sát và dự đoán lưu lượng nước thông minh với công nghệ AI",
-                          className="lead text-muted mb-4"),
-                    dbc.Button([
-                        html.I(className="fas fa-chart-line me-2"),
-                        "Bắt đầu ngay"
-                    ], color="primary", size="lg", className="px-5 py-3 shadow", href="/login")
-                ], className="hero-section text-center py-5")
+                create_weather_widget()
             ], width=12)
         ], className="mb-5"),
         
@@ -275,7 +268,7 @@ layout = html.Div([
                         html.I(className="fas fa-bell fa-3x text-warning mb-3"),
                         html.H4("Cảnh Báo", className="mb-3"),
                         html.P("Thông báo ngay khi phát hiện bất thường trong hệ thống",
-                              className="text-muted")
+                            className="text-muted")
                     ], className="text-center")
                 ], className="shadow-sm feature-card h-100")
             ], md=4, className="mb-4"),
@@ -289,9 +282,254 @@ layout = html.Div([
             dbc.Row([
                 dbc.Col([
                 html.P("© 2025 Dự Đoán Lưu Lượng Nước. Bảo lưu mọi quyền.",
-                    className="text-center text-muted mb-0")
+                    className="text-center mb-0",
+                    style={"color": "white !important"}
+                    )
                 ], width=12)
             ])
         ])
-    ], className="py-4 bg-light mt-5")
+    ], className="py-4 mt-5", style={"background-color": "#023E73"} )
 ], className="page-container")
+
+
+@callback(
+    Output('weather-store', 'data'),
+    Input('url', 'hash')
+)
+def fetch_weather_from_hash(hash_value):
+    if not hash_value:
+        raise PreventUpdate
+
+    try:
+        s = hash_value.lstrip('#')
+        parts = dict([p.split('=') for p in s.split('&') if '=' in p])
+        lat = float(parts.get('lat'))
+        lon = float(parts.get('lon'))
+    except Exception:
+        raise PreventUpdate
+
+    try:
+        url = 'https://api.open-meteo.com/v1/forecast'
+        params = {
+            'latitude': lat,
+            'longitude': lon,
+            'current_weather': True,
+            'hourly': 'relativehumidity_2m,pressure_msl,precipitation',
+            'daily': 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum',
+            'timezone': 'auto'
+        }
+
+        resp = requests.get(url, params=params, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        print(data)
+        
+
+        try:
+            geocode_url = 'https://geocoding-api.open-meteo.com/v1/reverse'
+            gparams = {'latitude': lat, 'longitude': lon, 'name': True}
+            gresp = requests.get(geocode_url, params=gparams, timeout=3)
+            gresp.raise_for_status()
+            gdata = gresp.json()
+            if gdata.get('results') and len(gdata['results'])>0:
+                data['place_name'] = gdata['results'][0].get('name')
+                admin = gdata['results'][0].get('admin1')
+                country = gdata['results'][0].get('country')
+                if admin:
+                    data['place_name'] += f', {admin}'
+                if country:
+                    data['place_name'] += f', {country}'
+        except Exception:
+            pass
+
+        return data
+    except Exception as e:
+        return {'error': str(e)}
+
+
+@callback(
+    [
+        Output('weather-location', 'children'),
+        Output('weather-localtime', 'children'),
+        Output('weather-temp', 'children'),
+        Output('weather-desc', 'children'),
+        Output('weather-icon', 'className'),
+        Output('stat-temp', 'children'),
+        Output('stat-humidity', 'children'),
+        Output('stat-pressure', 'children'),
+        Output('stat-precip', 'children'),
+        Output('weather-forecast', 'children'),
+        Output('weather-updated', 'children'),
+        Output('weather-container', 'className'),
+        Output('weather-raw', 'children')
+    ],
+    [
+        Input('weather-store', 'data'),
+        Input('show-forecast', 'n_clicks'),
+        Input('forecast-length', 'value')
+    ],
+    [State('weather-store', 'data')]
+)
+def render_weather(store_data, n_clicks, forecast_length, stored):
+    default_container_class = 'text-start'
+
+    def empty_response(msg=''):
+        return (
+            'Thời tiết địa phương',  # weather-location
+            '',                     # weather-localtime
+            '—',                    # weather-temp
+            msg or 'Vui lòng cho phép truy cập vị trí để xem thời tiết.',  # weather-desc
+            'weather-icon',         # weather-icon className
+            '—', '—', '—', '—',     # stat-temp, stat-humidity, stat-pressure, stat-precip
+            [],                     # forecast children
+            '',                     # weather-updated
+            default_container_class
+            , ''
+        )
+
+    if not store_data:
+        return empty_response()
+
+    if isinstance(store_data, dict) and store_data.get('error'):
+        return empty_response(f"Lỗi: {store_data.get('error')}")
+
+    cw = store_data.get('current_weather') if isinstance(store_data, dict) else None
+    if not cw:
+        return empty_response('Không có dữ liệu thời tiết hiện tại.')
+
+    temp = cw.get('temperature')
+    wind = cw.get('windspeed')
+    weather_code = cw.get('weathercode')
+    time = cw.get('time')
+
+    humidity = None
+    pressure = None
+    precip = None
+    try:
+        hourly = store_data.get('hourly', {})
+        if hourly:
+            times = hourly.get('time', [])
+            if time in times:
+                idx = times.index(time)
+            else:
+                idx = -1
+            humidity = hourly.get('relativehumidity_2m', [None])[idx]
+            pressure = hourly.get('pressure_msl', [None])[idx]
+            precip = hourly.get('precipitation', [0])[idx]
+    except Exception:
+        humidity = None
+
+    wc_map = {
+        0: 'Quang đãng',
+        1: 'Ít mây',
+        2: 'Mây rải rác',
+        3: 'Râm',
+        45: 'Sương mù',
+        48: 'Sương khô',
+        51: 'Mưa nhẹ',
+        53: 'Mưa vừa',
+        61: 'Mưa',
+        71: 'Tuyết',
+        80: 'Mưa rào'
+    }
+
+    forecast_items = []
+    try:
+        daily = store_data.get('daily', {})
+        dates = daily.get('time', [])
+        wcodes = daily.get('weathercode', [])
+        tmax = daily.get('temperature_2m_max', [])
+        tmin = daily.get('temperature_2m_min', [])
+        psum = daily.get('precipitation_sum', [])
+        if n_clicks and n_clicks > 0:
+            length = int(forecast_length or 3)
+            for i in range(min(length, len(dates))):
+                d = dates[i]
+                wc = wcodes[i] if i < len(wcodes) else None
+                hi = tmax[i] if i < len(tmax) else None
+                lo = tmin[i] if i < len(tmin) else None
+                pd = psum[i] if i < len(psum) else None
+                label = wc_map.get(wc, 'N/A')
+                forecast_items.append({'date': d, 'label': label, 'hi': hi, 'lo': lo, 'precip': pd, 'code': wc})
+    except Exception:
+        forecast_items = []
+
+    desc = wc_map.get(weather_code, f'Code {weather_code}')
+
+    icon_class = 'sunny'
+    container_variant = ''
+    if weather_code in (61, 80, 51, 53):
+        icon_class = 'rain'
+        container_variant = 'rain'
+    elif weather_code in (2,3,45,48):
+        icon_class = 'cloudy'
+        container_variant = 'cloudy'
+    else:
+        container_variant = 'sunny'
+
+    place = store_data.get('place_name') if isinstance(store_data, dict) else None
+    if not place:
+        place = 'Vị trí của bạn'
+
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(time)
+        localtime_str = dt.strftime('%H:%M %d/%m/%Y')
+    except Exception:
+        localtime_str = time
+
+    details = html.Div([
+        html.H3(f"{temp}°C", className='mb-1'),
+        html.P(f"{desc}", className='text-muted mb-1'),
+        html.Div([html.Small(f"Gió: {wind} km/h"), html.Span(" • "), html.Small(f"Độ ẩm: {humidity if humidity is not None else '—'}%")], className='text-muted'),
+    ])
+
+    # forecast cards
+    forecast_nodes = []
+    for f in forecast_items:
+        # short date
+        try:
+            dd = datetime.fromisoformat(f['date']).strftime('%d/%m')
+        except Exception:
+            dd = f['date']
+        forecast_nodes.append(html.Div([
+            html.Div(dd, className='small text-muted'),
+            html.Div(f['label'], className='small'),
+            html.Div(f"{f.get('hi','—')}° / {f.get('lo','—')}°", className='fw-bold'),
+            html.Div((f.get('precip') or 0), className='small text-muted')
+        ], className='day'))
+
+    updated = f"Cập nhật: {localtime_str}"
+
+    location_out = place
+    localtime_out = localtime_str
+    temp_out = f"{temp}°C"
+    desc_out = desc
+    icon_class_out = f'weather-icon {icon_class}'
+
+    stat_temp_out = f"{temp} °C"
+    stat_humidity_out = f"{humidity if humidity is not None else '—'} %"
+    stat_pressure_out = f"{pressure if pressure is not None else '—'} hPa"
+    stat_precip_out = f"{precip if precip is not None else 0}"
+
+    forecast_out = forecast_nodes
+
+    updated_out = updated
+
+    container_class = f'text-start weather-{container_variant}'
+
+    return (
+        location_out,
+        localtime_out,
+        temp_out,
+        desc_out,
+        icon_class_out,
+        stat_temp_out,
+        stat_humidity_out,
+        stat_pressure_out,
+        stat_precip_out,
+        forecast_out,
+        updated_out,
+        container_class,
+        json.dumps(store_data, ensure_ascii=False, indent=2)
+    )
