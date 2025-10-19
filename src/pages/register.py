@@ -14,7 +14,7 @@ layout = html.Div(
             
             children=[
                 html.Div(
-                    className="auth-panel left-panel d-none d-md-flex p-4",
+                    className="auth-panel left-panel d-none d-md-flex",
                     children=[
                         html.Img(
                             src="/assets/logo_waterflow.png",
@@ -35,7 +35,7 @@ layout = html.Div(
                     children=[
                         dbc.Card(
                             dbc.CardBody([
-                                html.H3("Đăng Ký", className="text-center mb-4 fw-bold", style={"color": "#023E73"}),
+                                html.H3("Đăng Ký Tài Khoản", className="text-center mb-4 fw-bold", style={"color": "#023E73"}),
 
                                 dcc.Loading(
                                     id='loading-register-message',

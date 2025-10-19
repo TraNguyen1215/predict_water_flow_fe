@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 import dash
-from utils.auth import authenticate_user, forgot_password
+from utils.auth import authenticate_user, forgot_password_verify, forgot_password_reset
 
 layout = html.Div(
     className="auth-container",
@@ -101,21 +101,14 @@ layout = html.Div(
             ],
         ),
 
-        # Modal quên mật khẩu
+        # Modal quên mật khẩu (2-step: verify -> reset)
+        dcc.Store(id='forgot-verified-store', data=None),
+
         dbc.Modal([
             dbc.ModalHeader("Khôi phục mật khẩu"),
-            dbc.ModalBody([
-                dbc.Label("Email hoặc tên đăng nhập"),
-                dbc.Input(
-                    id='forgot-email',
-                    type='text',
-                    placeholder='Nhập email hoặc tên đăng nhập',
-                    className='mb-2 rounded-pill'
-                ),
-                html.Div(id='forgot-message', className='mt-2')
-            ]),
+            dbc.ModalBody(html.Div(id='forgot-body')),
             dbc.ModalFooter([
-                dbc.Button("Gửi", id='forgot-submit', color='primary'),
+                html.Div(id='forgot-footer'),
                 dbc.Button("Đóng", id='forgot-close', className='ms-2')
             ])
         ], id='forgot-modal', is_open=False, centered=True)
@@ -153,7 +146,7 @@ def login_user(n_clicks, username, password):
 
 
 @callback(
-    Output('forgot-modal', 'is_open'),
+    Output('forgot-modal', 'is_open', allow_duplicate=True),
     [Input('forgot-link', 'n_clicks'), Input('forgot-close', 'n_clicks')],
     [State('forgot-modal', 'is_open')],
     prevent_initial_call=True
@@ -167,17 +160,77 @@ def toggle_forgot(n_open, n_close, is_open):
 
 
 @callback(
-    [Output('forgot-message', 'children'), Output('forgot-modal', 'is_open', allow_duplicate=True)],
-    Input('forgot-submit', 'n_clicks'),
-    [State('forgot-email', 'value')],
+    [Output('forgot-body', 'children'), Output('forgot-footer', 'children')],
+    [Input('forgot-modal', 'is_open'), Input('forgot-verified-store', 'data')],
+    prevent_initial_call=False
+)
+def render_forgot_modal(is_open, verified):
+    if not is_open:
+        raise PreventUpdate
+
+    if not verified:
+        body = dbc.Form([
+            dbc.Label("Tên đăng nhập", className='fw-bold'),
+            dbc.Input(id='forgot-username', type='text', placeholder='Nhập tên đăng nhập', className='mb-2'),
+            dbc.Label("Tên máy bơm", className='fw-bold'),
+            dbc.Input(id='forgot-pump-name', type='text', placeholder='Nhập tên máy bơm', className='mb-2'),
+            dbc.Label("Ngày tưới gần nhất", className='fw-bold'),
+            dbc.Input(id='forgot-last-irrigation', type='date', className='mb-2'),
+            html.Div(id='forgot-step-message')
+        ])
+        footer = html.Div([
+            dbc.Button("Xác thực", id='forgot-verify', color='primary')
+        ])
+        return body, footer
+    else:
+        body = dbc.Form([
+            dbc.Label("Tên đăng nhập", className='fw-bold'),
+            dbc.Input(id='forgot-username-2', type='text', value=verified, disabled=True, className='mb-2'),
+            dbc.Label("Mật khẩu mới", className='fw-bold'),
+            dbc.Input(id='forgot-new-password', type='password', placeholder='Nhập mật khẩu mới', className='mb-2'),
+            html.Div(id='forgot-step-message')
+        ])
+        footer = html.Div([
+            dbc.Button("Đặt lại mật khẩu", id='forgot-reset', color='primary')
+        ])
+        return body, footer
+
+
+
+@callback(
+    [Output('forgot-step-message', 'children', allow_duplicate=True), Output('forgot-verified-store', 'data')],
+    Input('forgot-verify', 'n_clicks'),
+    [State('forgot-username', 'value'), State('forgot-pump-name', 'value'), State('forgot-last-irrigation', 'value')],
     prevent_initial_call=True
 )
-def submit_forgot(n_clicks, identifier):
-    if not identifier:
-        return dbc.Alert('Vui lòng nhập email hoặc tên đăng nhập', color='warning'), dash.no_update
+def handle_forgot_verify(n_clicks, ten_dang_nhap, ten_may_bom, ngay_tuoi):
+    
+    if not n_clicks:
+        raise PreventUpdate
+    
+    if not ten_dang_nhap or not ten_may_bom or not ngay_tuoi:
+        return dbc.Alert('Vui lòng nhập đầy đủ thông tin xác thực', color='warning'), dash.no_update
 
-    success, message = forgot_password(identifier)
+    success, message = forgot_password_verify(ten_dang_nhap, ten_may_bom, ngay_tuoi)
     if success:
-        return dbc.Alert(message, color='success', dismissable=True), False
+        return dbc.Alert(message, color='success', dismissable=True), ten_dang_nhap
     else:
-        return dbc.Alert(message, color='danger', dismissable=True), True
+        return dbc.Alert(message, color='danger', dismissable=True), dash.no_update
+
+
+
+@callback(
+    [Output('forgot-step-message', 'children', allow_duplicate=True), Output('forgot-modal', 'is_open', allow_duplicate=True), Output('login-message', 'children', allow_duplicate=True)],
+    Input('forgot-reset', 'n_clicks'),
+    [State('forgot-username-2', 'value'), State('forgot-new-password', 'value')],
+    prevent_initial_call=True
+)
+def handle_forgot_reset(n_clicks, ten_dang_nhap, mat_khau_moi):
+    if not mat_khau_moi:
+        return dbc.Alert('Vui lòng nhập mật khẩu mới', color='warning'), dash.no_update, dash.no_update
+
+    success, message = forgot_password_reset(ten_dang_nhap, mat_khau_moi)
+    if success:
+        return dbc.Alert(message, color='success', dismissable=True), False, dbc.Alert(message, color='success', dismissable=True)
+    else:
+        return dbc.Alert(message, color='danger', dismissable=True), True, dash.no_update

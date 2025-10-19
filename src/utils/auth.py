@@ -165,6 +165,41 @@ def forgot_password(email: str) -> Tuple[bool, str]:
         return False, f'Lỗi kết nối tới server: {e}'
 
 
+def forgot_password_verify(ten_dang_nhap: str, ten_may_bom: str, ngay_tuoi_gan_nhat: str) -> Tuple[bool, str]:
+    """Verify identity before allowing password reset.
+
+    """
+    try:
+        resp = requests.post(_url('auth/quen-mat-khau/verify'), json={
+            'ten_dang_nhap': ten_dang_nhap,
+            'ten_may_bom': ten_may_bom,
+            'ngay_tuoi_gan_nhat': ngay_tuoi_gan_nhat,
+        }, timeout=5)
+        data = resp.json() if resp.content else {}
+        if resp.status_code == 200:
+            return True, data.get('message', 'Xác thực thành công')
+        return False, data.get('message', data.get('error', 'Xác thực thất bại'))
+    except requests.RequestException as e:
+        return False, f'Lỗi kết nối tới server: {e}'
+
+
+def forgot_password_reset(ten_dang_nhap: str, mat_khau_moi: str) -> Tuple[bool, str]:
+    """Reset password after successful verification.
+
+    """
+    try:
+        resp = requests.post(_url('auth/quen-mat-khau/reset'), json={
+            'ten_dang_nhap': ten_dang_nhap,
+            'mat_khau_moi': mat_khau_moi,
+        }, timeout=5)
+        data = resp.json() if resp.content else {}
+        if resp.status_code == 200:
+            return True, data.get('message', 'Đặt lại mật khẩu thành công')
+        return False, data.get('message', data.get('error', 'Đặt lại mật khẩu thất bại'))
+    except requests.RequestException as e:
+        return False, f'Lỗi kết nối tới server: {e}'
+
+
 def is_token_expired(token: Optional[str]) -> bool:
     """Kiểm tra xem token JWT có hết hạn hay không.
     """
