@@ -155,10 +155,11 @@ layout = html.Div([
 
 @callback(
     [Output('profile-username', 'children'),
-     Output('profile-email', 'children'),
-     Output('account-fullname', 'value'),
-     Output('account-email', 'value'),
-     Output('account-phone', 'value')],
+        Output('profile-email', 'children'),
+        Output('account-fullname', 'value'),
+        Output('account-email', 'value'),
+        Output('account-phone', 'value')
+    ],
     Input('url', 'pathname'),
     State('session-store', 'data')
 )
@@ -167,7 +168,8 @@ def load_user_info(pathname, session_data):
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     username = session_data.get('username')
-    user_info = get_user_info(username)
+    token = session_data.get('token')
+    user_info = get_user_info(username, token=token)
     
     return (
         username,
@@ -194,8 +196,8 @@ def save_account_info(n_clicks, fullname, phone, session_data):
         'full_name': fullname or '',
         'phone': phone or ''
     }
-    
-    success, message = update_user_info(username, user_data)
+    token = session_data.get('token')
+    success, message = update_user_info(username, user_data, token=token)
     
     if success:
         return dbc.Alert(message, color="success", dismissable=True)

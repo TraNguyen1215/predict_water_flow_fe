@@ -1,6 +1,9 @@
 from typing import Tuple, Dict, Any, Optional
 import os
 import requests
+import time
+import base64
+import json
 
 URL_API_BASE = os.environ.get('URL_API_BASE', 'http://127.0.0.1:8000/api/v1')
 
@@ -10,7 +13,7 @@ def _url(path: str) -> str:
 
 
 def register_user(username: str, name: str, password: str) -> Tuple[bool, str]:
-    """Register a new user via backend API.
+    """Đăng ký người dùng mới qua API backend.
 
     """
     try:
@@ -28,8 +31,11 @@ def register_user(username: str, name: str, password: str) -> Tuple[bool, str]:
         return False, f'Lỗi kết nối tới server: {e}'
 
 
-def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional[str]]:
-    """Authenticate user against backend API. Returns (success, message, token)."""
+def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional[str], Optional[float]]:
+    """ Đăng nhập người dùng qua API backend.
+    Trả về (success, message, token, token_exp).
+    token_exp là thời điểm hết hạn của token dưới dạng dấu thời gian unix (giây) nếu có.
+    """
     try:
         resp = requests.post(_url('auth/dang-nhap'), json={
             'ten_dang_nhap': username,
@@ -41,15 +47,59 @@ def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional
                 data.get('access_token') or data.get('token') or data.get('jwt') or
                 data.get('accessToken') or (data.get('data') and data['data'].get('token'))
             )
-            return True, data.get('message', 'Đăng nhập thành công'), token
+
+            token_exp = None
+            if isinstance(data, dict):
+                if 'exp' in data and isinstance(data['exp'], (int, float)):
+                    token_exp = float(data['exp'])
+                elif 'expires_at' in data:
+                    try:
+                        token_exp = float(data['expires_at'])
+                    except Exception:
+                        token_exp = None
+                elif 'expires_in' in data:
+                    try:
+                        token_exp = time.time() + float(data['expires_in'])
+                    except Exception:
+                        token_exp = None
+                elif data.get('data') and isinstance(data['data'], dict):
+                    d = data['data']
+                    if 'exp' in d and isinstance(d['exp'], (int, float)):
+                        token_exp = float(d['exp'])
+                    elif 'expires_at' in d:
+                        try:
+                            token_exp = float(d['expires_at'])
+                        except Exception:
+                            token_exp = None
+                    elif 'expires_in' in d:
+                        try:
+                            token_exp = time.time() + float(d['expires_in'])
+                        except Exception:
+                            token_exp = None
+
+            if not token_exp and token:
+                try:
+                    parts = token.split('.')
+                    if len(parts) >= 2:
+                        payload_b64 = parts[1]
+                        padding = '=' * (-len(payload_b64) % 4)
+                        payload_bytes = base64.urlsafe_b64decode(payload_b64 + padding)
+                        payload = json.loads(payload_bytes.decode('utf-8'))
+                        exp = payload.get('exp')
+                        if exp:
+                            token_exp = float(exp)
+                except Exception:
+                    token_exp = None
+
+            return True, data.get('message', 'Đăng nhập thành công'), token, token_exp
         else:
-            return False, data.get('message', data.get('error', 'Đăng nhập thất bại')), None
+            return False, data.get('message', data.get('error', 'Đăng nhập thất bại')), None, None
     except requests.RequestException as e:
-        return False, f'Lỗi kết nối tới server: {e}', None
+        return False, f'Lỗi kết nối tới server: {e}', None, None
 
 
 def get_user_info(ma_nguoi_dung: str, token: Optional[str] = None) -> Dict[str, Any]:
-    """Get user information from backend API. Returns dict or empty dict.
+    """Lấy thông tin người dùng
 
     """
     try:
@@ -65,7 +115,7 @@ def get_user_info(ma_nguoi_dung: str, token: Optional[str] = None) -> Dict[str, 
 
 
 def update_user_info(ma_nguoi_dung: str, user_data: Dict[str, Any], token: Optional[str] = None) -> Tuple[bool, str]:
-    """Update user information via backend API.
+    """Cập nhật thông tin người dùng qua API backend.
 
     """
     try:
@@ -82,7 +132,7 @@ def update_user_info(ma_nguoi_dung: str, user_data: Dict[str, Any], token: Optio
 
 
 def change_password(current_password: str, new_password: str, token: Optional[str] = None) -> Tuple[bool, str]:
-    """Change user's password via backend API.
+    """Đổi mật khẩu người dùng qua API backend.
 
     """
     try:
@@ -113,4 +163,26 @@ def forgot_password(email: str) -> Tuple[bool, str]:
         return False, data.get('message', data.get('error', 'Yêu cầu thất bại'))
     except requests.RequestException as e:
         return False, f'Lỗi kết nối tới server: {e}'
+
+
+def is_token_expired(token: Optional[str]) -> bool:
+    """Kiểm tra xem token JWT có hết hạn hay không.
+    """
+    if not token:
+        return True
+
+    try:
+        parts = token.split('.')
+        if len(parts) < 2:
+            return True
+        payload_b64 = parts[1]
+        padding = '=' * (-len(payload_b64) % 4)
+        payload_bytes = base64.urlsafe_b64decode(payload_b64 + padding)
+        payload = json.loads(payload_bytes.decode('utf-8'))
+        exp = payload.get('exp')
+        if not exp:
+            return True
+        return time.time() > float(exp)
+    except Exception:
+        return True
 

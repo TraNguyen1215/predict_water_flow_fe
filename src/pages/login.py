@@ -91,7 +91,7 @@ layout = html.Div([
 @callback(
     [Output('login-message', 'children'),
      Output('session-store', 'data', allow_duplicate=True),
-     Output('url', 'pathname')],
+     Output('url', 'pathname', allow_duplicate=True)],
     Input('login-btn', 'n_clicks'),
     [State('login-username', 'value'),
      State('login-password', 'value')],
@@ -101,13 +101,14 @@ def login_user(n_clicks, username, password):
     if not username or not password:
         return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update
     
-    success, message, token = authenticate_user(username, password)
-    
+    success, message, token, token_exp = authenticate_user(username, password)
+
     if success:
         session_data = {
             'authenticated': True,
             'username': username,
-            'token': token
+            'token': token,
+            'token_exp': token_exp
         }
         return dbc.Alert(message, color="success", dismissable=True), session_data, '/account'
     else:

@@ -125,26 +125,27 @@ layout = html.Div([
 )
 def register_new_user(n_clicks, username, email, password, confirm_password, accept_terms):
     if not username or not email or not password or not confirm_password:
-        return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update
+        return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update
     
     if not accept_terms:
-        return dbc.Alert("Vui lòng đồng ý với điều khoản sử dụng!", color="warning", dismissable=True), dash.no_update
+        return dbc.Alert("Vui lòng đồng ý với điều khoản sử dụng!", color="warning", dismissable=True), dash.no_update, dash.no_update
     
     if password != confirm_password:
-        return dbc.Alert("Mật khẩu xác nhận không khớp!", color="danger", dismissable=True), dash.no_update
+        return dbc.Alert("Mật khẩu xác nhận không khớp!", color="danger", dismissable=True), dash.no_update, dash.no_update
     
     if len(password) < 6:
-        return dbc.Alert("Mật khẩu phải có ít nhất 6 ký tự!", color="warning", dismissable=True), dash.no_update
+        return dbc.Alert("Mật khẩu phải có ít nhất 6 ký tự!", color="warning", dismissable=True), dash.no_update, dash.no_update
     
     success, message = register_user(username, email, password)
 
     if success:
-        auth_success, auth_message, token = authenticate_user(username, password)
+        auth_success, auth_message, token, token_exp = authenticate_user(username, password)
         if auth_success:
             session_data = {
                 'authenticated': True,
                 'username': username,
-                'token': token
+                'token': token,
+                'token_exp': token_exp
             }
             return dbc.Alert(message + " Đăng ký thành công!", color="success", dismissable=True), session_data, '/account'
         else:
