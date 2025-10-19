@@ -48,6 +48,11 @@ def display_page(pathname, session_data):
         page = login.layout
     elif pathname == '/register':
         page = register.layout
+    elif pathname == '/' or pathname == '':
+        if is_authenticated:
+            page = home.layout
+        else:
+            page = login.layout
     elif pathname == '/account':
         if is_authenticated:
             page = account.layout
@@ -62,7 +67,7 @@ def display_page(pathname, session_data):
         page = home.layout
 
     try:
-        if hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
+        if is_authenticated and hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
             page.children[0] = create_navbar(is_authenticated)
     except Exception:
         pass

@@ -5,11 +5,13 @@
    ========================================== */
 
 :root {
-    --primary-color: #2563eb; /* soft blue */
-    --secondary-color: #6b7280; /* gray-500 */
-    --bg-color: #f7fafc; /* very light */
+    /* Primary theme: blue */
+    --primary-color: #0d6efd; /* bootstrap primary blue */
+    --primary-color-dark: #0846b6; /* darker blue for accents */
+    --secondary-color: #2563eb; /* soft blue as secondary */
+    --bg-color: #f7fbff; /* very light blue-ish background */
     --card-bg: #ffffff; /* white cards */
-    --muted: #6b7280;
+    --muted: #5b7fbf; /* muted blue */
     --success-color: #16a34a;
     --danger-color: #dc2626;
     --border-radius: 10px;
@@ -30,28 +32,26 @@ body {
     background: var(--bg-color);
     color: #0f172a; /* dark slate */
     -webkit-font-smoothing: antialiased;
-    /* always show vertical scrollbar to prevent layout shift */
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
 }
 
-/* Layout helpers */
 .page-container { 
     padding-bottom: 24px; 
-    /* ensure content fills viewport (prevent white gap at bottom) */
     min-height: calc(100vh - var(--nav-height) - var(--footer-height));
-    /* remove extra top padding — content will be positioned under fixed navbar */
     padding-top: 0;
     margin-top: var(--nav-height);
 }
+
+.login-page, .register-page {
+    margin-top: 0;
+}
 .container-fluid { padding-left: 16px; padding-right: 16px; }
 
-/* Navbar */
 .navbar-custom {
     background: var(--card-bg);
     border-bottom: 1px solid #e6edf3;
     padding: 0.5rem 1rem;
-    /* fix navbar to the top of the viewport */
     position: fixed;
     top: 0;
     left: 0;
@@ -65,7 +65,6 @@ body {
 .nav-link-custom { color: var(--secondary-color) !important; padding: 0.5rem 0.75rem !important; }
 .nav-link-custom:hover { color: var(--primary-color) !important; }
 
-/* Hero */
 .hero-section {
     background: var(--card-bg);
     border-radius: calc(var(--border-radius) * 1.2);
@@ -74,7 +73,6 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-/* Cards */
 .stat-card, .feature-card, .card {
     background: var(--card-bg);
     border-radius: var(--border-radius);
@@ -83,15 +81,13 @@ body {
 }
 .stat-card .card-body, .feature-card .card-body, .card-body { padding: 1.25rem; }
 
-/* Slight lift on hover for emphasis */
 .stat-card:hover, .feature-card:hover { box-shadow: var(--shadow-sm); transform: translateY(-4px); }
 
-/* Login/Register pages: neutral background */
-.login-page, .register-page { background: linear-gradient(180deg, var(--bg-color), #eef6ff); padding: 3rem 0; }
-.login-card { border-radius: calc(var(--border-radius) * 1.2); box-shadow: var(--shadow-sm); }
+.login-page,
+.register-page { background: linear-gradient(180deg, var(--bg-color), #eef6ff); padding: 3rem 0; }
+.login-card { border-radius: calc(var(--border-radius) * 1.2); width: 100%; }
 .login-card .card-body { padding: 2rem; }
 
-/* Forms */
 .form-control, .form-select, input[type="text"], input[type="password"], input[type="email"] {
     width: 100%;
     padding: 0.6rem 0.9rem;
@@ -100,33 +96,113 @@ body {
     background: #fff;
     color: #071133;
 }
-.form-control:focus { outline: 2px solid rgba(37,99,235,0.12); border-color: #4f46e5; }
+.form-control:focus { outline: 2px solid rgba(13,110,253,0.12); border-color: var(--primary-color-dark); }
 
-/* Buttons */
 .btn { border-radius: 8px; padding: 0.6rem 1rem; font-weight: 600; }
 .btn-primary { background: var(--primary-color); border: none; color: white; }
 .btn-secondary { background: transparent; color: var(--secondary-color); border: 1px solid #e6edf3; }
 
-/* Card headers */
 .card-header { background: transparent; border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; }
 .card-header h5 { margin: 0; font-weight: 600; color: #071133; }
 
-/* Pills / Navs */
 .nav-pills .nav-link { border-radius: 8px; color: var(--secondary-color); }
-.nav-pills .nav-link.active { color: var(--primary-color); background: rgba(37,99,235,0.06); }
+.nav-pills .nav-link.active { color: var(--primary-color); background: rgba(13,110,253,0.06); }
 
-/* Alerts */
 .alert { border-radius: 8px; }
 
-/* Footer */
 footer { padding: 1.5rem 0; color: var(--secondary-color); background: transparent; }
 
-/* Utility */
 .text-muted { color: var(--muted); }
 
-/* Responsive tweaks */
 @media (max-width: 768px) {
     .hero-section { padding: 1.5rem; }
     .login-card .card-body { padding: 1.25rem; }
 }
 
+.auth-slim .login-card { max-width: 420px; margin-left: auto; margin-right: auto; }
+.auth-slim .login-card .card-body { padding: 1.25rem; }
+.auth-slim .login-page { padding-top: 1.5rem; }
+
+.register-split { padding: 2.5rem 0; }
+.register-split .left-panel {
+    background: linear-gradient(180deg, rgba(13,110,253,0.06), rgba(37,99,235,0.03));
+    border-radius: calc(var(--border-radius) * 1.2);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.register-split .left-panel h2 { color: #0f172a; margin-bottom: 0.5rem; }
+.register-split .left-panel p { color: var(--muted); margin-bottom: 0; }
+.register-split .right-panel { display:flex; align-items:center; justify-content:center; }
+
+@media (min-width: 992px) {
+    .register-split .left-panel { padding: 3rem; }
+    .register-split .right-panel .login-card { width:100%; max-width:560px; }
+}
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100%;
+    background-size: cover;
+    background-position: center;
+    background-color: #4dacffa6;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-box {
+    position: relative;
+    width: 85%;
+    max-width: 950px;
+    border-radius: calc(var(--border-radius) * 2.5);
+    box-shadow: 0 16px 32px rgb(5 5 5 / 41%);
+    height: 60%;
+    display: flex;
+    background: #ffffff;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.auth-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: 0.4s ease-in-out;
+}
+
+.left-panel {
+    background: #023E73;
+    color: white;
+    text-align: center;
+}
+.left-panel h2 {
+    font-size: 1.6rem;
+    line-height: 1.4;
+}
+.left-panel p {
+    max-width: 360px;
+    font-size: 0.95rem;
+    text-align: justify;
+}
+
+/* Bên phải – form đăng nhập */
+.right-panel {
+    background: #fff;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .auth-box {
+        flex-direction: column;
+        height: auto;
+    }
+    .auth-panel {
+        width: 100%;
+        padding: 2rem 1rem;
+    }
+}

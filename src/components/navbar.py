@@ -16,7 +16,6 @@ def create_navbar(is_authenticated=False):
         ]
     else:
         nav_items = [
-            dbc.NavItem(dbc.NavLink("Trang chủ", href="/", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink("Đăng nhập", href="/login", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink("Đăng ký", href="/register", className="nav-link-custom")),
         ]
@@ -28,7 +27,7 @@ def create_navbar(is_authenticated=False):
                     dbc.Col(html.I(className="fas fa-water fa-2x text-primary")),
                     dbc.Col(dbc.NavbarBrand("Dự Đoán Lưu Lượng Nước", className="ms-2 navbar-brand-custom")),
                 ], align="center", className="g-0"),
-                href="/",
+                href=("/" if is_authenticated else "/login"),
                 style={"textDecoration": "none"}
             ),
             dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
