@@ -6,6 +6,7 @@ def create_navbar(is_authenticated=False):
         nav_items = [
             dbc.NavItem(dbc.NavLink("Trang chủ", href="/", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink("Cảm biến", href="/sensor", className="nav-link-custom")),
+            dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink("Lịch sử", href="/history", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink("Tài khoản", href="/account", className="nav-link-custom")),
             # dbc.NavItem(dbc.NavLink("Cài đặt", href="/settings", className="nav-link-custom")),

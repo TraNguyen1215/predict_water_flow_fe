@@ -317,7 +317,7 @@ def fetch_weather_from_hash(hash_value):
         resp = requests.get(url, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
-        print(data)
+        # print(data)
         
 
         try:

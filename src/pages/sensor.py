@@ -41,6 +41,7 @@ layout = html.Div([
 
     dcc.Store(id='sensor-data-store'),
     dcc.Store(id='sensor-types-store'),
+    dcc.Store(id='sensor-selected-type'),
     dcc.Store(id='sensor-delete-id'),
 
         dbc.Modal([
@@ -128,7 +129,22 @@ def populate_type_options(types_data):
         opts.append({'label': str(ten or ma), 'value': ma})
     return opts
 
-
+@callback(
+    Output('sensor-selected-type', 'data'),
+    Input('sensor-loai', 'value'),
+    State('sensor-loai', 'options'),
+    prevent_initial_call=True
+)
+def store_selected_type(value, options):
+    if value is None:
+        return None
+    label = None
+    if options and isinstance(options, (list, tuple)):
+        for opt in options:
+            if opt.get('value') == value:
+                label = opt.get('label')
+                break
+    return {'ma_loai_cam_bien': int(value) if isinstance(value, (int, str)) and str(value).isdigit() else value, 'ten_loai_cam_bien': label}
 
 @callback(
     Output('sensor-types-store', 'data', allow_duplicate=True),
@@ -137,12 +153,12 @@ def populate_type_options(types_data):
     prevent_initial_call='initial_duplicate'
 )
 def fetch_types_on_modal_open(n_add, edit_clicks, session_data):
-    # ensure the callback was triggered by a real click (not initial / page-load)
     ctx = dash.callback_context
+    
     if not ctx.triggered:
         raise PreventUpdate
-    # value of the trigger (n_clicks) should be truthy
     trig_value = ctx.triggered[0].get('value')
+    
     if not trig_value:
         raise PreventUpdate
 
@@ -182,7 +198,7 @@ def render_table(data, search):
 
 
 @callback(
-    [Output('sensor-modal', 'is_open'), Output('sensor-modal-title', 'children'), Output('sensor-edit-id', 'data'), Output('sensor-ten', 'value'), Output('sensor-mo-ta', 'value'), Output('sensor-ma-may-bom', 'value'), Output('sensor-ngay-lap-dat', 'value'), Output('sensor-loai', 'value')],
+    [Output('sensor-modal', 'is_open'), Output('sensor-modal-title', 'children'), Output('sensor-edit-id', 'data'), Output('sensor-ten', 'value'), Output('sensor-mo-ta', 'value'), Output('sensor-ma-may-bom', 'value'), Output('sensor-ngay-lap-dat', 'value'), Output('sensor-loai', 'value'), Output('sensor-save', 'children')],
     [Input('open-add-sensor', 'n_clicks'), Input({'type': 'edit-sensor', 'index': dash.ALL}, 'n_clicks'), Input('sensor-cancel', 'n_clicks')],
     [State('sensor-data-store', 'data')],
     prevent_initial_call=True
@@ -192,13 +208,13 @@ def open_modal(n_add, edit_clicks, n_cancel, store):
     if not ctx.triggered:
         raise PreventUpdate
     btn = ctx.triggered[0]['prop_id'].split('.')[0]
-    # only act on real clicks (avoid opening on initial load where n_clicks may be None/0)
     trig_value = ctx.triggered[0].get('value')
     if not trig_value:
         raise PreventUpdate
     # add
     if btn == 'open-add-sensor':
-        return True, 'Thêm cảm biến', None, '', '', 1, str(datetime.date.today()), None
+        # when adding, set save button label to 'Thêm'
+        return True, 'Thêm cảm biến', None, '', '', 1, str(datetime.date.today()), None, 'Thêm'
 
     if 'edit-sensor' in btn:
         try:
@@ -215,18 +231,19 @@ def open_modal(n_add, edit_clicks, n_cancel, store):
         if not s:
             raise PreventUpdate
         sel_loai = s.get('ma_loai_cam_bien') if s.get('ma_loai_cam_bien') is not None else s.get('loai')
-        return True, 'Sửa cảm biến', idx, s.get('ten_cam_bien'), s.get('mo_ta'), s.get('ma_may_bom'), s.get('ngay_lap_dat'), sel_loai
+    # when editing, keep save button label as 'Lưu'
+    return True, 'Sửa cảm biến', idx, s.get('ten_cam_bien'), s.get('mo_ta'), s.get('ma_may_bom'), s.get('ngay_lap_dat'), sel_loai, 'Lưu'
 
-    return False, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    return False, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 
 @callback(
-    Output('sensor-data-store', 'data', allow_duplicate=True),
+    [Output('sensor-data-store', 'data', allow_duplicate=True), Output('sensor-modal', 'is_open', allow_duplicate=True)],
     [Input('sensor-save', 'n_clicks')],
-    [State('sensor-edit-id', 'data'), State('sensor-ten', 'value'), State('sensor-mo-ta', 'value'), State('sensor-ma-may-bom', 'value'), State('sensor-ngay-lap-dat', 'value'), State('sensor-loai', 'value'), State('sensor-data-store', 'data'), State('session-store', 'data')],
+    [State('sensor-edit-id', 'data'), State('sensor-ten', 'value'), State('sensor-mo-ta', 'value'), State('sensor-ma-may-bom', 'value'), State('sensor-ngay-lap-dat', 'value'), State('sensor-loai', 'value'), State('sensor-selected-type', 'data'), State('sensor-data-store', 'data'), State('session-store', 'data')],
     prevent_initial_call=True
 )
-def save_or_delete(n_save, delete_clicks, edit_id, ten, mo_ta, ma_may_bom, ngay_lap_dat, loai, store, session_data):
+def save_or_delete(n_save, edit_id, ten, mo_ta, ma_may_bom, ngay_lap_dat, loai, sensor_selected_type, store, session_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
@@ -235,21 +252,34 @@ def save_or_delete(n_save, delete_clicks, edit_id, ten, mo_ta, ma_may_bom, ngay_
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
 
-    # handle save (create or update)
     if prop == 'sensor-save':
+        final_loai = None
+        if sensor_selected_type and isinstance(sensor_selected_type, dict):
+            final_loai = sensor_selected_type.get('ma_loai_cam_bien')
+            print(final_loai)
+        else:
+            final_loai = loai
+
+        try:
+            ma_loai_val = int(final_loai) if final_loai is not None else None
+        except Exception:
+            ma_loai_val = final_loai
+
         payload = {
             'ten_cam_bien': ten,
             'mo_ta': mo_ta,
             'ma_may_bom': int(ma_may_bom) if ma_may_bom is not None else 0,
             'ngay_lap_dat': ngay_lap_dat,
-            'ma_loai_cam_bien': int(loai) if loai is not None else None
+            'loai': ma_loai_val
         }
         if edit_id:
             update_sensor(edit_id, payload, token=token)
         else:
             create_sensor(payload, token=token)
 
-        return list_sensors(limit=200, offset=0, token=token)
+        data = list_sensors(limit=200, offset=0, token=token)
+        # close modal after save
+        return data, False
 
     raise PreventUpdate
 
@@ -279,7 +309,7 @@ def open_confirm_on_delete(delete_clicks):
 
 
 @callback(
-    [Output('sensor-data-store', 'data', allow_duplicate=True), Output('confirm-delete-modal', 'is_open', allow_duplicate=True)],
+    [Output('sensor-data-store', 'data', allow_duplicate=True), Output('confirm-delete-modal', 'is_open', allow_duplicate=True), Output('sensor-modal', 'is_open', allow_duplicate=True)],
     Input('confirm-delete', 'n_clicks'),
     [State('sensor-delete-id', 'data'), State('session-store', 'data')],
     prevent_initial_call='initial_duplicate'
@@ -292,7 +322,8 @@ def perform_delete(n_confirm, delete_id, session_data):
         token = session_data.get('token')
     success, msg = delete_sensor(delete_id, token=token)
     data = list_sensors(limit=200, offset=0, token=token)
-    return data, False
+    # ensure any sensor modal is closed as well
+    return data, False, False
 
 
 @callback(
