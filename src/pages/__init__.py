@@ -1,3 +1,3 @@
-from . import home, login, register, account, settings
+from . import home, login, register, account, settings, sensor
 
-__all__ = ['home', 'login', 'register', 'account']
+__all__ = ['home', 'login', 'register', 'account', 'settings', 'sensor']

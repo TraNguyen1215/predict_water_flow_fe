@@ -5,7 +5,7 @@ from flask import session
 import os
 
 # Import pages
-from pages import home, login, register, account, settings
+from pages import home, login, register, account, settings, sensor
 from components.navbar import create_navbar
 
 # Initialize app with Bootstrap theme
@@ -23,11 +23,9 @@ app = dash.Dash(
     ]
 )
 
-# Server for session management
 server = app.server
 server.config['SECRET_KEY'] = os.urandom(24)
 
-# Main layout
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
@@ -58,11 +56,11 @@ def display_page(pathname, session_data):
             page = account.layout
         else:
             page = login.layout
-    # elif pathname == '/settings':
-    #     if is_authenticated:
-    #         page = settings.layout
-    #     else:
-    #         page = login.layout
+    elif pathname == '/sensor':
+        if is_authenticated:
+            page = sensor.layout
+        else:
+            page = login.layout
     else:
         page = home.layout
 
