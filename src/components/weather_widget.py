@@ -3,9 +3,6 @@ import dash_bootstrap_components as dbc
 
 
 def create_weather_widget():
-    """Return a Dash layout block that shows current weather for user's location.
-    """
-
     card = dbc.Card([
         dbc.CardBody([
             html.Div([

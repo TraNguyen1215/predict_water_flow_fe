@@ -101,7 +101,6 @@ layout = html.Div(
             ],
         ),
 
-        # Modal quên mật khẩu (2-step: verify -> reset)
         dcc.Store(id='forgot-verified-store', data=None),
 
         dbc.Modal([

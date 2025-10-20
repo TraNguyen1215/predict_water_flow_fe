@@ -13,9 +13,7 @@ def _url(path: str) -> str:
 
 
 def register_user(username: str, name: str, password: str) -> Tuple[bool, str]:
-    """Đăng ký người dùng mới qua API backend.
-
-    """
+    """Đăng ký người dùng mới qua API backend."""
     try:
         resp = requests.post(_url('auth/dang-ky'), json={
             'ten_dang_nhap': username,
@@ -149,21 +147,6 @@ def change_password(current_password: str, new_password: str, token: Optional[st
         return False, data.get('message', data.get('error', 'Đổi mật khẩu thất bại'))
     except requests.RequestException as e:
         return False, f'Lỗi kết nối tới server: {e}'
-
-
-def forgot_password(email: str) -> Tuple[bool, str]:
-    """Request password reset via backend API (forgot password).
-
-    """
-    try:
-        resp = requests.post(_url('auth/quen-mat-khau'), json={'email': email}, timeout=5)
-        data = resp.json() if resp.content else {}
-        if resp.status_code == 200:
-            return True, data.get('message', 'Yêu cầu đặt lại mật khẩu đã được gửi')
-        return False, data.get('message', data.get('error', 'Yêu cầu thất bại'))
-    except requests.RequestException as e:
-        return False, f'Lỗi kết nối tới server: {e}'
-
 
 def forgot_password_verify(ten_dang_nhap: str, ten_may_bom: str, ngay_tuoi_gan_nhat: str) -> Tuple[bool, str]:
     """Verify identity before allowing password reset.

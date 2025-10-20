@@ -28,7 +28,6 @@ def generate_sample_data():
 
 df = generate_sample_data()
 
-# Create layout
 layout = html.Div([
     create_navbar(is_authenticated=False),
     
@@ -39,7 +38,6 @@ layout = html.Div([
             ], width=12)
         ], className="mb-5"),
         
-        # Statistics Cards
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -90,7 +88,6 @@ layout = html.Div([
             ], md=3, sm=6, className="mb-4"),
         ]),
         
-        # Charts Section
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -232,7 +229,6 @@ layout = html.Div([
             ], width=12)
         ]),
         
-        # Features Section
         dbc.Row([
             dbc.Col([
                 html.H2("Tính Năng Nổi Bật", className="text-center mb-5 mt-4")
@@ -246,7 +242,7 @@ layout = html.Div([
                         html.I(className="fas fa-brain fa-3x text-primary mb-3"),
                         html.H4("AI Dự Đoán", className="mb-3"),
                         html.P("Sử dụng machine learning để dự đoán lưu lượng nước chính xác",
-                              className="text-muted")
+                                className="text-muted")
                     ], className="text-center")
                 ], className="shadow-sm feature-card h-100")
             ], md=4, className="mb-4"),
@@ -276,7 +272,6 @@ layout = html.Div([
         
     ], fluid=True, className="px-4"),
     
-    # Footer
     html.Footer([
         dbc.Container([
             dbc.Row([
@@ -484,10 +479,8 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
         html.Div([html.Small(f"Gió: {wind} km/h"), html.Span(" • "), html.Small(f"Độ ẩm: {humidity if humidity is not None else '—'}%")], className='text-muted'),
     ])
 
-    # forecast cards
     forecast_nodes = []
     for f in forecast_items:
-        # short date
         try:
             dd = datetime.fromisoformat(f['date']).strftime('%d/%m')
         except Exception:
