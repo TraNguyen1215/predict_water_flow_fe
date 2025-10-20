@@ -81,7 +81,7 @@ def display_page(pathname, session_data):
     prevent_initial_call='initial_duplicate'
 )
 def check_token_expiry(n_intervals, session_data):
-    from utils.auth import is_token_expired
+    from api.auth import is_token_expired
 
     if not session_data or not isinstance(session_data, dict):
         return dash.no_update, dash.no_update

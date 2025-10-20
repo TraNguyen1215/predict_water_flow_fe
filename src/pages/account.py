@@ -3,8 +3,8 @@ import dash_bootstrap_components as dbc
 import dash
 from datetime import datetime, timezone, timedelta
 from components.navbar import create_navbar
-from utils.auth import get_user_info, update_user_info
-from utils.auth import change_password
+from api.auth import get_user_info, update_user_info
+from api.auth import change_password
 
 notifications_content = dbc.Card([
     dbc.CardHeader([

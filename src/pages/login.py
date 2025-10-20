@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 import dash
-from utils.auth import authenticate_user, forgot_password_verify, forgot_password_reset
+from api.auth import authenticate_user, forgot_password_verify, forgot_password_reset
 
 layout = html.Div(
     className="auth-container",

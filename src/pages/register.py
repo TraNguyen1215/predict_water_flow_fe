@@ -1,7 +1,7 @@
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash
-from utils.auth import register_user, authenticate_user
+from api.auth import register_user, authenticate_user
 from dash.exceptions import PreventUpdate
 
 
