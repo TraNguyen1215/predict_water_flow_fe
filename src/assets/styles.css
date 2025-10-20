@@ -185,6 +185,23 @@ input[type="email"] {
     background: rgba(13, 110, 253, 0.06);
 }
 
+.settings-nav .nav-link {
+    transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+
+.settings-nav .nav-link:hover,
+.settings-nav .nav-link:focus {
+    color: var(--primary-color) !important;
+    background: rgba(3, 88, 163, 0.04);
+    transform: translateX(4px);
+    outline: none;
+}
+
+.settings-nav .nav-link:focus-visible {
+    box-shadow: 0 0 0 3px rgba(3,88,163,0.12);
+    border-radius: 8px;
+}
+
 .alert {
     border-radius: 8px;
 }

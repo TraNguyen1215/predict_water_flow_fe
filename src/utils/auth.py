@@ -140,8 +140,8 @@ def change_password(current_password: str, new_password: str, token: Optional[st
         if token:
             headers['Authorization'] = f'Bearer {token}'
         resp = requests.post(_url('auth/doi-mat-khau'), json={
-            'current_password': current_password,
-            'new_password': new_password,
+            'mat_khau_cu': current_password,
+            'mat_khau_moi': new_password,
         }, timeout=5, headers=headers)
         data = resp.json() if resp.content else {}
         if resp.status_code == 200:

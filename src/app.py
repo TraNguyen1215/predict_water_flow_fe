@@ -5,7 +5,7 @@ from flask import session
 import os
 
 # Import pages
-from pages import home, login, register, account, settings
+from pages import home, login, register, settings
 from components.navbar import create_navbar
 
 # Initialize app with Bootstrap theme
@@ -32,7 +32,28 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
     dcc.Interval(id='token-check-interval', interval=30*1000, n_intervals=0),
-    html.Div(id='page-content')
+    html.Div(id='page-content'),
+    html.Div([
+        dcc.Input(id='account-fullname', type='text', style={'display': 'none'}),
+        dcc.Input(id='account-phone', type='text', style={'display': 'none'}),
+        dcc.Input(id='account-address', type='text', style={'display': 'none'})
+    ], style={'display': 'none'})
+    ,
+    html.Div([
+        html.Div(id='profile-username', style={'display': 'none'})
+    ], style={'display': 'none'})
+    ,
+    html.Div([
+        html.Img(id='profile-avatar', src='', style={'display': 'none'})
+    ], style={'display': 'none'})
+    ,
+    html.Div([html.Div(id='profile-status', style={'display': 'none'})], style={'display': 'none'})
+    ,
+    html.Div([html.Div(id='profile-created', style={'display': 'none'})], style={'display': 'none'})
+    ,
+    html.Div([html.Div(id='profile-lastlogin', style={'display': 'none'})], style={'display': 'none'})
+    ,
+    html.Div([html.Div(id='profile-address', style={'display': 'none'})], style={'display': 'none'})
 ])
 
 @app.callback(
@@ -53,11 +74,7 @@ def display_page(pathname, session_data):
             page = home.layout
         else:
             page = login.layout
-    elif pathname == '/account':
-        if is_authenticated:
-            page = account.layout
-        else:
-            page = login.layout
+    # removed /account route (account page merged into settings)
     elif pathname == '/settings':
         if is_authenticated:
             page = settings.layout

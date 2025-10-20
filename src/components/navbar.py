@@ -7,7 +7,7 @@ def create_navbar(is_authenticated=False):
     if is_authenticated:
         nav_items = [
             dbc.NavItem(dbc.NavLink("Trang chủ", href="/", className="nav-link-custom")),
-            dbc.NavItem(dbc.NavLink("Tài khoản", href="/account", className="nav-link-custom")),
+            # account page removed; users should use Settings
             dbc.NavItem(dbc.NavLink("Cài đặt", href="/settings", className="nav-link-custom")),
             dbc.NavItem(dbc.NavLink([
                 html.I(className="fas fa-sign-out-alt me-2"),

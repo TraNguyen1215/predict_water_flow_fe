@@ -153,7 +153,7 @@ def register_new_user(n_clicks, username, fullname, password, confirm_password, 
                 'token': token,
                 'token_exp': token_exp
             }
-            return dbc.Alert(message + " Đăng ký thành công!", color="success", dismissable=True), session_data, '/account'
+            return dbc.Alert(message + " Đăng ký thành công!", color="success", dismissable=True), session_data, '/settings'
         else:
             return dbc.Alert(message + " Tuy nhiên tự động đăng nhập thất bại. Vui lòng đăng nhập.", color="warning", dismissable=True), dash.no_update, '/login'
     else:

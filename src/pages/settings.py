@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash
 from components.navbar import create_navbar
-from utils.auth import change_password
+from utils.auth import change_password, get_user_info, update_user_info
 
 layout = html.Div([
     create_navbar(is_authenticated=True),
@@ -22,24 +22,32 @@ layout = html.Div([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
+                        html.Div([
+                            html.Img(id='profile-avatar', src='', className="rounded-circle mb-3", style={'width':'96px','height':'96px','object-fit':'cover'}),
+                            html.H4(id='profile-username', className="mb-2"),
+                            html.Div(id='profile-status', className="mb-2"),
+                            html.Div([html.Span("Được tạo: "), html.Span(id='profile-created')], className="small text-muted"),
+                            html.Div([html.Span("Lần đăng nhập: "), html.Span(id='profile-lastlogin')], className="small text-muted mb-2"),
+                            html.P(id='profile-address', className="text-muted mb-3"),
+                        ], className="text-center"),
+
                         dbc.Nav([
+                            dbc.NavLink([
+                                html.I(className="fas fa-user-circle me-2"),
+                                "Tài khoản"
+                            ], id="nav-account", className="mb-2"),
+                            dbc.NavLink([
+                                "Đổi mật khẩu"
+                            ], id="nav-security", className="mb-2"),
                             dbc.NavLink([
                                 html.I(className="fas fa-bell me-2"),
                                 "Thông báo"
-                            ], active=True, id="nav-notifications", className="mb-2"),
-                            dbc.NavLink([
-                                html.I(className="fas fa-shield-alt me-2"),
-                                "Bảo mật"
-                            ], id="nav-security", className="mb-2"),
+                            ], id="nav-notifications", className="mb-2"),
                             dbc.NavLink([
                                 html.I(className="fas fa-paint-brush me-2"),
                                 "Giao diện"
                             ], id="nav-appearance", className="mb-2"),
-                            dbc.NavLink([
-                                html.I(className="fas fa-database me-2"),
-                                "Dữ liệu"
-                            ], id="nav-data", className="mb-2"),
-                        ], vertical=True, pills=True)
+                        ], vertical=True, pills=True, className="settings-nav")
                     ])
                 ], className="shadow-sm")
             ], md=3, className="mb-4"),
@@ -66,7 +74,7 @@ notifications_content = dbc.Card([
             type='default',
             children=html.Div(id='settings-message', className="mb-3")
         ),
-        
+
         dbc.Form([
             dbc.Row([
                 dbc.Col([
@@ -91,7 +99,7 @@ notifications_content = dbc.Card([
                     ),
                 ], width=12)
             ]),
-            
+
             dbc.Row([
                 dbc.Col([
                     html.H6("Thông báo Push", className="mb-3"),
@@ -109,7 +117,7 @@ notifications_content = dbc.Card([
                     ),
                 ], width=12)
             ]),
-            
+
             dbc.Row([
                 dbc.Col([
                     dbc.Button(
@@ -128,8 +136,7 @@ notifications_content = dbc.Card([
 security_content = dbc.Card([
     dbc.CardHeader([
         html.H5([
-            html.I(className="fas fa-shield-alt me-2"),
-            "Cài Đặt Bảo Mật"
+            "Đổi mật khẩu"
         ], className="mb-0")
     ]),
     dbc.CardBody([
@@ -162,21 +169,12 @@ security_content = dbc.Card([
             ]),
             
             dbc.Row([
-                dbc.Col([
-                    html.H6("Xác thực hai yếu tố", className="mb-3"),
-                    dbc.Checkbox(
-                        id='two-factor-auth',
-                        label='Bật xác thực hai yếu tố (2FA)',
-                        value=False,
-                        className="mb-4"
-                    ),
-                ], width=12)
             ]),
-            
+
             dbc.Row([
                 dbc.Col([
                     dbc.Button(
-                        [html.I(className="fas fa-key me-2"), "Cập Nhật Bảo Mật"],
+                        ["Lưu mật khẩu"],
                         id='save-security-settings',
                         color='primary',
                         className="px-4"
@@ -229,117 +227,92 @@ appearance_content = dbc.Card([
     ])
 ], className="shadow-sm")
 
-# Data Settings
-data_content = dbc.Card([
-    dbc.CardHeader([
-        html.H5([
-            html.I(className="fas fa-database me-2"),
-            "Cài Đặt Dữ Liệu"
-        ], className="mb-0")
-    ]),
-    dbc.CardBody([
-        dbc.Form([
+# Data Settings removed as requested
+
+# Account content (merged from account.py)
+account_content = html.Div([
+    dbc.Card([
+        dbc.CardHeader(html.H5([html.I(className="fas fa-user me-2"), "Thông Tin Tài Khoản"], className="mb-0")),
+        dbc.CardBody([
+            dcc.Loading(id='loading-account-message', type='default', children=html.Div(id='account-message', className="mb-3")),
             dbc.Row([
                 dbc.Col([
-                    html.H6("Tần suất cập nhật", className="mb-3"),
-                    dbc.Select(
-                        id='update-frequency',
-                        options=[
-                            {'label': '5 giây', 'value': '5'},
-                            {'label': '10 giây', 'value': '10'},
-                            {'label': '30 giây', 'value': '30'},
-                            {'label': '1 phút', 'value': '60'},
-                        ],
-                        value='10',
-                        className="mb-4"
-                    ),
-                ], md=6)
-            ]),
-            
-            dbc.Row([
+                    html.Div([
+                        html.Img(id='profile-avatar', src='', className='rounded-circle', style={'width':'120px','height':'120px','object-fit':'cover'}),
+                        html.H4(id='profile-username', className='mt-3 mb-1'),
+                        html.Div(id='profile-status', className='text-muted')
+                    ], className='text-center')
+                ], md=4),
                 dbc.Col([
-                    html.H6("Sao lưu dữ liệu", className="mb-3"),
-                    dbc.Checkbox(
-                        id='auto-backup',
-                        label='Tự động sao lưu hàng ngày',
-                        value=True,
-                        className="mb-2"
-                    ),
-                    dbc.Button(
-                        [html.I(className="fas fa-download me-2"), "Tải xuống dữ liệu"],
-                        id='download-data',
-                        color='secondary',
-                        outline=True,
-                        className="mb-4"
-                    ),
-                ], width=12)
-            ]),
-            
-            dbc.Row([
-                dbc.Col([
-                    html.H6("Xóa dữ liệu", className="mb-3"),
-                    dbc.Button(
-                        [html.I(className="fas fa-trash me-2"), "Xóa tất cả dữ liệu"],
-                        id='delete-all-data',
-                        color='danger',
-                        outline=True,
-                        className="mb-4"
-                    ),
-                ], width=12)
-            ]),
-            
-            dbc.Row([
-                dbc.Col([
-                    dbc.Button(
-                        [html.I(className="fas fa-save me-2"), "Lưu Cài Đặt"],
-                        id='save-data-settings',
-                        color='primary',
-                        className="px-4"
-                    ),
-                ], width=12)
-            ]),
+                    dbc.ListGroup([
+                        dbc.ListGroupItem([html.Strong("Họ và tên: "), html.Span(id='profile-username-item')]),
+                        dbc.ListGroupItem([html.Strong("Số điện thoại: "), html.Span(id='profile-phone')]),
+                        dbc.ListGroupItem([html.Strong("Địa chỉ: "), html.Span(id='profile-address')]),
+                        dbc.ListGroupItem([html.Strong("Trạng thái: "), html.Span(id='profile-status-item')]),
+                        dbc.ListGroupItem([html.Strong("Tạo lúc: "), html.Span(id='profile-created')]),
+                        dbc.ListGroupItem([html.Strong("Lần đăng nhập cuối: "), html.Span(id='profile-lastlogin')]),
+                    ])
+                ], md=8)
+            ])
         ])
-    ])
-], className="shadow-sm")
+    ], className="shadow-sm p-3")
+])
 
 @callback(
-    Output('settings-content', 'children'),
-    [Input('nav-notifications', 'n_clicks'),
+    [Output('settings-content', 'children'),
+     Output('nav-account', 'active'),
+     Output('nav-security', 'active'),
+     Output('nav-notifications', 'active'),
+     Output('nav-appearance', 'active')],
+    [Input('nav-account', 'n_clicks'),
      Input('nav-security', 'n_clicks'),
-     Input('nav-appearance', 'n_clicks'),
-     Input('nav-data', 'n_clicks')],
+     Input('nav-notifications', 'n_clicks'),
+     Input('nav-appearance', 'n_clicks')],
     prevent_initial_call=False
 )
-def update_settings_content(notif_clicks, sec_clicks, appear_clicks, data_clicks):
+def update_settings_content(account_clicks, sec_clicks, notif_clicks, appear_clicks):
+    """Return the content for the settings pane and set which nav link is active.
+
+    Returns: (content, notif_active, sec_active, appear_active)
+    """
     ctx = dash.callback_context
-    
+
+    account_active = sec_active = notif_active = appear_active = False
+
     if not ctx.triggered:
-        return notifications_content
-    
+        account_active = True
+        return account_content, account_active, sec_active, notif_active, appear_active
+
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
+    if button_id == 'nav-account':
+        account_active = True
+        return account_content, account_active, sec_active, notif_active, appear_active
     if button_id == 'nav-security':
-        return security_content
+        sec_active = True
+        return security_content, account_active, sec_active, notif_active, appear_active
+    elif button_id == 'nav-notifications':
+        notif_active = True
+        return notifications_content, account_active, sec_active, notif_active, appear_active
     elif button_id == 'nav-appearance':
-        return appearance_content
-    elif button_id == 'nav-data':
-        return data_content
+        appear_active = True
+        return appearance_content, account_active, sec_active, notif_active, appear_active
     else:
-        return notifications_content
+        account_active = True
+        return account_content, account_active, sec_active, notif_active, appear_active
 
 @callback(
     Output('settings-message', 'children'),
     [Input('save-notification-settings', 'n_clicks'),
      Input('save-security-settings', 'n_clicks'),
-     Input('save-appearance-settings', 'n_clicks'),
-     Input('save-data-settings', 'n_clicks')],
+     Input('save-appearance-settings', 'n_clicks')],
     [State('current-password', 'value'),
      State('new-password', 'value'),
      State('confirm-new-password', 'value'),
      State('session-store', 'data')],
     prevent_initial_call=True
 )
-def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks,
+def save_settings(notif_clicks, sec_clicks, appear_clicks,
                   current_password, new_password, confirm_new_password, session_data):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -347,9 +320,7 @@ def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks,
 
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Handle security update (change password)
     if button_id == 'save-security-settings':
-        # Basic validation
         if not current_password or not new_password or not confirm_new_password:
             return dbc.Alert("Vui lòng nhập đầy đủ thông tin mật khẩu.", color="warning", dismissable=True)
 
@@ -359,13 +330,12 @@ def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks,
         if len(new_password) < 6:
             return dbc.Alert("Mật khẩu phải có ít nhất 6 ký tự.", color="warning", dismissable=True)
 
-        # Determine username from session-store
         token = None
         if session_data and isinstance(session_data, dict):
             token = session_data.get('token')
 
         if not token:
-            return dbc.Alert("Không tìm thấy thông tin đăng nhập (token). Vui lòng đăng nhập lại.", color="danger", dismissable=True)
+            return dbc.Alert("Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại.", color="danger", dismissable=True)
 
         success, message = change_password(current_password, new_password, token)
         if success:
@@ -373,5 +343,65 @@ def save_settings(notif_clicks, sec_clicks, appear_clicks, data_clicks,
         else:
             return dbc.Alert(message, color="danger", dismissable=True)
 
-    # For other save buttons, just show a generic saved message
     return dbc.Alert("Cài đặt đã được lưu thành công!", color="success", dismissable=True, duration=3000)
+
+
+@callback(
+    [Output('profile-avatar', 'src'),
+        Output('profile-username', 'children'),
+        Output('profile-status', 'children'),
+        Output('profile-created', 'children'),
+        Output('profile-lastlogin', 'children'),
+        Output('profile-address', 'children'),
+        Output('account-fullname', 'value'),
+        Output('account-phone', 'value'),
+        Output('account-address', 'value')],
+    Input('url', 'pathname'),
+    State('session-store', 'data')
+)
+def load_user_info(pathname, session_data):
+    if not session_data or not session_data.get('authenticated'):
+        return tuple([dash.no_update]*9)
+    
+    username = session_data.get('username')
+    token = session_data.get('token')
+    user_info = get_user_info(username, token=token)
+    
+    avatar = user_info.get('avatar', '') or '/assets/default-avatar.svg'
+    full_name = user_info.get('ho_ten') or ''
+    status = user_info.get('trang_thai', '')
+    created = user_info.get('thoi_gian_tao', '')
+    last_login = user_info.get('dang_nhap_lan_cuoi', '')
+    address = user_info.get('dia_chi', '')
+    phone = user_info.get('so_dien_thoai') or ''
+
+    def _format_ts(val):
+        if not val:
+            return ''
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(val)
+            return dt.strftime('%d/%m/%Y %H:%M')
+        except Exception:
+            try:
+                ts = float(val)
+                from datetime import datetime
+                dt = datetime.fromtimestamp(ts)
+                return dt.strftime('%d/%m/%Y %H:%M')
+            except Exception:
+                return str(val)
+
+    created_fmt = _format_ts(created)
+    lastlogin_fmt = _format_ts(last_login)
+
+    return (
+        avatar,
+        username,
+        full_name,
+        status,
+        created_fmt,
+        lastlogin_fmt,
+        address,
+        phone,
+        address
+    )
