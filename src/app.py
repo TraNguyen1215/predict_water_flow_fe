@@ -5,7 +5,7 @@ from flask import session
 import os
 
 # Import pages
-from pages import home, login, register, account, settings, sensor
+from pages import home, login, register, account, settings, sensor, pump
 from components.navbar import create_navbar
 
 # Initialize app with Bootstrap theme
@@ -59,6 +59,11 @@ def display_page(pathname, session_data):
     elif pathname == '/sensor':
         if is_authenticated:
             page = sensor.layout
+        else:
+            page = login.layout
+    elif pathname == '/pump':
+        if is_authenticated:
+            page = pump.layout
         else:
             page = login.layout
     else:
