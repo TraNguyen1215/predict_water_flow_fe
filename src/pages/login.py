@@ -108,7 +108,7 @@ layout = html.Div(
             dbc.ModalBody(html.Div(id='forgot-body')),
             dbc.ModalFooter([
                 html.Div(id='forgot-footer'),
-                dbc.Button("Đóng", id='forgot-close', className='ms-2')
+                dbc.Button("Đóng", id='forgot-close', className='ms-2 btn-cancel')
             ])
         ], id='forgot-modal', is_open=False, centered=True)
     ]

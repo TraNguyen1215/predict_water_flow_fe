@@ -69,8 +69,8 @@ layout = html.Div([
                 ])
             ]),
             dbc.ModalFooter([
-                dbc.Button('Lưu', id='data-save', color='primary'),
-                dbc.Button('Đóng', id='data-cancel', className='ms-2')
+                dbc.Button('Lưu', id='data-save', className='btn-edit'),
+                dbc.Button('Đóng', id='data-cancel', className='ms-2 btn-cancel')
             ])
         ], id='data-modal', is_open=False, centered=True)
 
@@ -281,7 +281,7 @@ def _build_pagination(current, max_pages, window=3):
     # next
     next_disabled = (current >= max_pages)
     items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'data-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled))
-    return dbc.ButtonGroup(items)
+    return dbc.ButtonGroup(items, className='page-pagination')
 
 
 @callback(

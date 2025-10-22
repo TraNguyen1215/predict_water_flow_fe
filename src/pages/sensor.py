@@ -17,8 +17,8 @@ def _sensor_row_row_item(s):
         html.Td(s.get('ten_loai_cam_bien') or ''),
         html.Td(s.get('ngay_lap_dat')),
         html.Td(dbc.ButtonGroup([
-            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-sensor', 'index': s.get('ma_cam_bien')}, color='warning', size='sm'),
-            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-sensor', 'index': s.get('ma_cam_bien')}, color='danger', size='sm')
+            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-edit', size='sm'),
+            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-delete', size='sm')
         ]))
     ])
 
@@ -61,8 +61,8 @@ layout = html.Div([
                 ])
             ]),
             dbc.ModalFooter([
-                dbc.Button('Lưu', id='sensor-save', color='primary'),
-                dbc.Button('Đóng', id='sensor-cancel', className='ms-2')
+                dbc.Button('Lưu', id='sensor-save', className='btn-edit'),
+                dbc.Button('Đóng', id='sensor-cancel', className='ms-2 btn-cancel')
             ])
         ], id='sensor-modal', is_open=False, centered=True)
 
@@ -71,8 +71,8 @@ layout = html.Div([
             dbc.ModalHeader('Xác nhận xóa'),
             dbc.ModalBody(html.Div(id='confirm-delete-body', children='Bạn có chắc chắn muốn xóa cảm biến này?')),
             dbc.ModalFooter([
-                dbc.Button('Xóa', id='confirm-delete', color='danger'),
-                dbc.Button('Hủy', id='confirm-cancel', className='ms-2')
+                dbc.Button('Xóa', id='confirm-delete', className='btn-delete'),
+                dbc.Button('Hủy', id='confirm-cancel', className='ms-2 btn-cancel')
             ])
         ], id='confirm-delete-modal', is_open=False, centered=True)
 
@@ -199,7 +199,7 @@ def _build_sensor_pagination(current, max_pages, window=3):
 
     next_disabled = (current >= max_pages)
     items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'sensor-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled))
-    return dbc.ButtonGroup(items)
+    return dbc.ButtonGroup(items, className='page-pagination')
 
 
 @callback(

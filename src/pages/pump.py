@@ -17,8 +17,8 @@ def _pump_row_item(p):
         html.Td(p.get('che_do')),
         html.Td(str(p.get('trang_thai'))),
         html.Td(dbc.ButtonGroup([
-            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, color='warning', size='sm'),
-            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, color='danger', size='sm')
+            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-edit', size='sm'),
+            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-delete', size='sm')
         ]))
     ])
 
@@ -59,8 +59,8 @@ layout = html.Div([
                 ])
             ]),
             dbc.ModalFooter([
-                dbc.Button('Lưu', id='pump-save', color='primary'),
-                dbc.Button('Đóng', id='pump-cancel', className='ms-2')
+                dbc.Button('Lưu', id='pump-save', className='btn-edit'),
+                dbc.Button('Đóng', id='pump-cancel', className='ms-2 btn-cancel')
             ])
         ], id='pump-modal', is_open=False, centered=True),
 
@@ -68,8 +68,8 @@ layout = html.Div([
             dbc.ModalHeader('Xác nhận xóa'),
             dbc.ModalBody(html.Div(id='confirm-delete-body', children='Bạn có chắc chắn muốn xóa máy bơm này?')),
             dbc.ModalFooter([
-                dbc.Button('Xóa', id='confirm-delete-pump', color='danger'),
-                dbc.Button('Hủy', id='confirm-cancel-pump', className='ms-2')
+                dbc.Button('Xóa', id='confirm-delete-pump', className='btn-delete'),
+                dbc.Button('Hủy', id='confirm-cancel-pump', className='ms-2 btn-cancel')
             ])
         ], id='confirm-delete-pump-modal', is_open=False, centered=True)
 
@@ -302,7 +302,7 @@ def _build_pump_pagination(current, max_pages, window=3):
 
     next_disabled = (current >= max_pages)
     items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'pump-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled))
-    return dbc.ButtonGroup(items)
+    return dbc.ButtonGroup(items, className='page-pagination')
 
 
 @callback(

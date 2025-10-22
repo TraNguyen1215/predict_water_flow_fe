@@ -81,7 +81,8 @@ def display_page(pathname, session_data):
 
     try:
         if is_authenticated and hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
-            page.children[0] = create_navbar(is_authenticated)
+            # Pass current pathname so the navbar can mark the correct link active
+            page.children[0] = create_navbar(is_authenticated, current_path=pathname)
     except Exception:
         pass
 

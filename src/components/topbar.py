@@ -20,7 +20,11 @@ def TopBar(title, search_id=None, date_id=None, unit_id=None, add_button=None, e
     right_children = []
     controls = []
     if search_id:
-        controls.append(dbc.Input(id=search_id, placeholder='Tìm kiếm theo tên', type='text', className='topbar-search me-2'))
+        search_wrapper = html.Div([
+            html.I(className='fas fa-search topbar-search-icon'),
+            dbc.Input(id=search_id, placeholder='Tìm kiếm theo tên', type='text', className='topbar-search topbar-search--slim')
+        ], className='topbar-search-wrapper me-2')
+        controls.append(search_wrapper)
     if unit_id:
         controls.append(dcc.Dropdown(id=unit_id, options=[], placeholder='Chọn máy bơm', clearable=True, className='topbar-unit me-2'))
 
@@ -46,7 +50,11 @@ def TopBar(title, search_id=None, date_id=None, unit_id=None, add_button=None, e
 
     # add button
     if show_add and add_button and isinstance(add_button, dict):
-        right_children.append(dbc.Button(add_button.get('label', 'Thêm'), id=add_button.get('id'), color='primary'))
+        # render add button with optional icon and a special class for styling
+        add_label = add_button.get('label', 'Thêm')
+        # show icon to the left of label; CSS can hide label on small screens
+        add_btn = dbc.Button([html.I(className='fas fa-plus me-2'), add_label], id=add_button.get('id'), color='primary', className='btn-add')
+        right_children.append(add_btn)
     if extra_right:
         right_children.extend(extra_right)
 

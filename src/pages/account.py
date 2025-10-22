@@ -182,14 +182,14 @@ layout = html.Div([
                         html.Div([
                             html.I(className="fas fa-user-circle fa-5x text-primary mb-3"),
                             html.H4(id='profile-username', className="mb-2"),
-                            dbc.Button([html.I(className="fas fa-edit me-2"), html.Span(id='edit-account-btn-text', children="Chỉnh sửa")], id='edit-account-btn', color='secondary', className='mb-3'),
+                            dbc.Button([html.I(className="fas fa-edit me-2"), html.Span(id='edit-account-btn-text', children="Chỉnh sửa")], id='edit-account-btn', className='mb-3 btn-edit'),
                         ], className="text-center"),
                         
                         dbc.Nav([
                             dbc.NavLink([
                                 html.I(className="fas fa-info-circle me-2"),
                                 "Thông tin cá nhân"
-                            ], active=True, href="#", className="mb-2"),
+                            ], href="#", className="mb-2"),
                             dbc.NavLink([
                                 html.I(className="fas fa-lock me-2"),
                                 "Đổi mật khẩu"
