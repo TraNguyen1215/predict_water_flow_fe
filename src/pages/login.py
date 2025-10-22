@@ -45,7 +45,7 @@ layout = html.Div(
                                     dbc.Input(
                                         id='login-username',
                                         type='text',
-                                        placeholder='Nhập tên đăng nhập',
+                                        placeholder='Nhập số điện thoại',
                                         className="mb-3 px-3 py-2"
                                     ),
 

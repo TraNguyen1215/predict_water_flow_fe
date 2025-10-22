@@ -11,6 +11,11 @@ from .pump import (
     update_pump,
     delete_pump,
 )
+from .sensor_data import (
+    get_data_by_pump,
+    get_data_by_date,
+    put_sensor_data,
+)
 
 __all__ = [
     'register_user',
@@ -25,4 +30,10 @@ __all__ += [
     'create_pump',
     'update_pump',
     'delete_pump',
+]
+
+__all__ += [
+    'get_data_by_pump',
+    'get_data_by_date',
+    'put_sensor_data',
 ]

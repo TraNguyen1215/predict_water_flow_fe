@@ -5,7 +5,7 @@ from flask import session
 import os
 
 # Import pages
-from pages import home, login, register, account, settings, sensor, pump
+from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation
 from components.navbar import create_navbar
 
 # Initialize app with Bootstrap theme
@@ -66,6 +66,14 @@ def display_page(pathname, session_data):
             page = pump.layout
         else:
             page = login.layout
+    elif pathname == '/sensor_data':
+        if is_authenticated:
+            page = sensor_data.layout
+        else:
+            page = login.layout
+    elif pathname == '/documentation':
+        # Documentation is a read-only page; allow access regardless of auth
+        page = documentation.layout
     else:
         page = home.layout
 
