@@ -7,6 +7,7 @@ import os
 # Import pages
 from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation
 from components.navbar import create_navbar
+from components.footer import create_footer
 
 # Initialize app with Bootstrap theme
 app = dash.Dash(
@@ -30,7 +31,8 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
     dcc.Interval(id='token-check-interval', interval=30*1000, n_intervals=0),
-    html.Div(id='page-content')
+    html.Div(id='page-content'),
+    create_footer()
 ])
 
 @app.callback(

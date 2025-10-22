@@ -43,6 +43,8 @@ body {
     min-height: calc(100vh - var(--nav-height) - var(--footer-height));
     padding-top: 0;
     margin-top: var(--nav-height);
+    /* ensure content leaves room for footer so pagination doesn't overlap */
+    padding-bottom: calc(var(--footer-height) + 16px);
 }
 
 .login-page,
@@ -209,6 +211,17 @@ input[type="email"] {
 footer {
     color: var(--secondary-color);
     background: transparent;
+}
+
+/* Site footer shared across pages */
+.site-footer {
+    background-color: var(--primary-color-dark);
+    color: white;
+}
+.site-footer .footer-text {
+    color: white !important;
+    margin: 0;
+    font-weight: 600;
 }
 
 .text-muted {
@@ -470,8 +483,9 @@ footer {
 .pagination-footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin: 1rem 0;
+    justify-content: center; /* center pagination + total */
+    gap: 0.75rem; /* spacing between pagination and total */
+    margin: 1rem 0 1.5rem; /* bottom margin to separate footer */
     padding: 6px;
     background: transparent; 
     width: 100%;
@@ -484,14 +498,16 @@ footer {
     padding: 0.38rem 0.9rem;
     box-shadow: 0 6px 14px rgba(3,88,163,0.06);
     font-weight: 600;
-
-    .topbar-limit { width: 120px !important; }
-
-    .pagination-footer .total-text { margin-right: 1rem; font-weight: 600; color: #334155; }
-
-    /* Scrollable table container so scrolling doesn't affect pagination */
-    .table-scroll { max-height: 55vh; overflow-y: auto; padding-right: 8px; }
 }
+
+/* topbar limit dropdown width */
+.topbar .topbar-limit { width: 120px !important; }
+
+/* pagination total text, centered next to controls */
+.pagination-footer .total-text { margin-left: 0.5rem; font-weight: 600; color: #334155; }
+
+/* table scroll container (top-level) */
+.table-scroll { max-height: 55vh; overflow-y: auto; padding-right: 8px; }
 
 .pagination-footer .pagination {
     display: flex;

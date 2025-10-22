@@ -272,18 +272,6 @@ layout = html.Div([
         
     ], fluid=True, className="px-4"),
     
-    html.Footer([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                html.P("© 2025 Dự Đoán Lưu Lượng Nước. Bảo lưu mọi quyền.",
-                    className="text-center mb-0",
-                    style={"color": "white !important"}
-                    )
-                ], width=12)
-            ])
-        ])
-    ], className="py-4 mt-5", style={"background-color": "#023E73"} )
 ], className="page-container")
 
 

@@ -34,12 +34,7 @@ layout = html.Div([
             dbc.Col(dcc.Loading(html.Div(id='data-table-container')))
         ]),
         dbc.Row([
-            dbc.Col(html.Div(id='data-total', className='pt-2')),
-        ], className='mt-2'),
-
-        dbc.Row([
-            dbc.Col(html.Div(id='data-total', className='pt-2 total-text'), width='auto'),
-            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='data-pagination')]))
+            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='data-pagination'), html.Div(id='data-total', className='pt-2 total-text')]))
         ], align='center'),
 
     dcc.Store(id='data-store'),
@@ -107,7 +102,7 @@ def load_pumps_options(pathname, session_data):
 
 
 @callback(
-    Output('data-filter-date', 'value'),
+    Output('data-filter-date', 'value', allow_duplicate=True),
     [Input('data-filter-date-prev', 'n_clicks'), Input('data-filter-date-next', 'n_clicks'), Input('data-filter-date', 'n_blur')],
     State('data-filter-date', 'value'),
     prevent_initial_call=True
@@ -133,6 +128,18 @@ def navigate_date(prev_clicks, next_clicks, blur, current_value):
         return str(new)
     # if blur or manual change, keep the value
     return current_value
+
+
+
+@callback(
+    Output('data-filter-date', 'value', allow_duplicate=True),
+    Input('url', 'pathname'),
+    prevent_initial_call='initial_duplicate'
+)
+def ensure_default_date_on_page(pathname):
+    if pathname not in ('/sensor-data', '/sensor_data', '/du-lieu-cam-bien'):
+        raise PreventUpdate
+    return str(datetime.date.today())
 
 
 @callback(
@@ -162,14 +169,19 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
             if isinstance(data, dict) and data.get('total') is not None:
                 total = int(data.get('total') or 0)
                 max_pages = max(1, (total + limit - 1) // limit)
-                total_text = f'Tổng: {total}'
             else:
                 total = len(data.get('data') or [])
-                total_text = f'Tổng: {total}'
+            # format like: "1-20 trong tổng số 170"
+            if total > 0:
+                start = (page - 1) * limit + 1
+                end = min(page * limit, total)
+                total_text = f'{start}-{end} trong tổng số {total}'
+            else:
+                total_text = f'0 trong tổng số 0'
         except Exception:
             data = {'data': []}
             max_pages = 1
-            total_text = 'Tổng: 0'
+            total_text = '0 trong tổng số 0'
         return data, {'max': max_pages}, total_text
 
     # fetch by pump (ma_may_bom can be None for 'Tất cả')
@@ -181,14 +193,18 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
         if isinstance(data, dict) and data.get('total') is not None:
             total = int(data.get('total') or 0)
             max_pages = max(1, (total + limit - 1) // limit)
-            total_text = f'Tổng: {total}'
         else:
             total = len(data.get('data') or [])
-            total_text = f'Tổng: {total}'
+        if total > 0:
+            start = (page - 1) * limit + 1
+            end = min(page * limit, total)
+            total_text = f'{start}-{end} trong tổng số {total}'
+        else:
+            total_text = f'0 trong tổng số 0'
     except Exception:
         data = {'data': []}
         max_pages = 1
-        total_text = 'Tổng: 0'
+        total_text = '0 trong tổng số 0'
     return data, {'max': max_pages}, total_text
 
     return data, {'max': 1}, total_text

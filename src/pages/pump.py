@@ -33,11 +33,7 @@ layout = html.Div([
         ]),
 
         dbc.Row([
-            dbc.Col(html.Div(id='pump-total', className='pt-2')),
-        ], className='mt-2'),
-
-        dbc.Row([
-            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination')]))
+            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination'), html.Div(id='pump-total', className='pt-2 total-text')]))
         ]),
 
         dcc.Store(id='pump-data-store'),
@@ -101,20 +97,24 @@ def load_pumps(pathname, page_store, session_data):
     offset = (page - 1) * limit
     data = {'data': []}
     max_pages = 1
-    total_text = 'Tổng: 0'
+    total_text = '0 trong tổng số 0'
     try:
         data = list_pumps(limit=limit, offset=offset, token=token)
         if isinstance(data, dict) and data.get('total') is not None:
             total = int(data.get('total') or 0)
             max_pages = max(1, (total + limit - 1) // limit)
-            total_text = f'Tổng: {total}'
         else:
             total = len(data.get('data') or [])
-            total_text = f'Tổng: {total}'
+        if total > 0:
+            start = (page - 1) * limit + 1
+            end = min(page * limit, total)
+            total_text = f'{start}-{end} trong tổng số {total}'
+        else:
+            total_text = '0 trong tổng số 0'
     except Exception:
         data = {'data': []}
         max_pages = 1
-        total_text = 'Tổng: 0'
+        total_text = '0 trong tổng số 0'
     return data, {'max': max_pages}, total_text
 
 
@@ -150,7 +150,8 @@ def render_pump_table(data, search):
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
 
-    return table
+    # keep table scrollable so pagination/footer remains fixed
+    return html.Div(className='table-scroll', children=[table])
 
 
 @callback(
