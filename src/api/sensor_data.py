@@ -9,7 +9,7 @@ def _url(path: str) -> str:
     return URL_API_BASE.rstrip('/') + '/' + path.lstrip('/')
 
 
-def get_data_by_pump(ma_may_bom: Optional[int] = None, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> Dict[str, Any]:
+def get_data_by_pump(ma_may_bom: Optional[int] = None, limit: int = 20, offset: int = 0, token: Optional[str] = None) -> Dict[str, Any]:
 
     try:
         headers = {}
@@ -30,13 +30,15 @@ def get_data_by_pump(ma_may_bom: Optional[int] = None, limit: int = 100, offset:
         return {'data': [], 'limit': limit, 'offset': offset, 'total': 0, 'error': str(e)}
 
 
-def get_data_by_date(ngay: str, token: Optional[str] = None) -> Dict[str, Any]:
+def get_data_by_date(ngay: str, limit: int = 20, offset: int = 0, token: Optional[str] = None) -> Dict[str, Any]:
     """Get sensor data for a given date (ngay in YYYY-MM-DD)."""
     try:
         headers = {}
         if token:
             headers['Authorization'] = f'Bearer {token}'
-        resp = requests.get(_url(f'du-lieu-cam-bien/ngay/{ngay}'), timeout=5, headers=headers)
+        
+        params = {'limit': limit, 'offset': offset}
+        resp = requests.get(_url(f'du-lieu-cam-bien/ngay/{ngay}'), timeout=5, headers=headers, params=params)
         try:
             data = resp.json() if resp.content else {}
         except Exception:

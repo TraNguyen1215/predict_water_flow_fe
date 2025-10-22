@@ -2,10 +2,13 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from components.navbar import create_navbar
+from components.topbar import TopBar
 from api.sensor_data import get_data_by_pump, get_data_by_date, put_sensor_data
 from api.sensor import list_sensors
+from api.pump import list_pumps
 import dash
 import datetime
+import dash
 
 
 def _data_row_item(d):
@@ -25,22 +28,25 @@ def _data_row_item(d):
 layout = html.Div([
     create_navbar(is_authenticated=True),
     dbc.Container([
-        dbc.Row([
-            dbc.Col(html.H3('Dữ liệu cảm biến'), width=8),
-            dbc.Col(dbc.Button('Thêm dữ liệu', id='open-add-data', color='primary'), width=4, className='text-end')
-        ], className='my-3'),
-
-        dbc.Row([
-            dbc.Col(dcc.Dropdown(id='data-filter-pump', options=[], placeholder='Chọn máy bơm', clearable=True)),
-            dbc.Col(dbc.Input(id='data-filter-date', type='date', value=str(datetime.date.today())))
-        ], className='mb-3'),
+    dbc.Row([dbc.Col(TopBar('Dữ liệu cảm biến', search_id=None, date_id='data-filter-date', add_button={'id':'open-add-data','label':'Thêm dữ liệu'}, unit_id='data-filter-pump', show_add=False, date_last=True, extra_right=[dcc.Dropdown(id='data-limit-dropdown', options=[{'label':'20','value':20},{'label':'50','value':50},{'label':'200','value':200}], value=20, clearable=False, className='topbar-limit me-2')]))], className='my-3'),
 
         dbc.Row([
             dbc.Col(dcc.Loading(html.Div(id='data-table-container')))
         ]),
+        dbc.Row([
+            dbc.Col(html.Div(id='data-total', className='pt-2')),
+        ], className='mt-2'),
+
+        dbc.Row([
+            dbc.Col(html.Div(id='data-total', className='pt-2 total-text'), width='auto'),
+            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='data-pagination')]))
+        ], align='center'),
 
     dcc.Store(id='data-store'),
     dcc.Store(id='data-edit-id'),
+    dcc.Store(id='data-page-store', data={'page': 1, 'limit': 20}),
+    # store to hold pagination meta (max pages). load_data will write here.
+    dcc.Store(id='data-pagination-store', data={'max': 1}),
 
         dbc.Modal([
             dbc.ModalHeader(id='data-modal-title'),
@@ -83,32 +89,126 @@ layout = html.Div([
     State('session-store', 'data')
 )
 def load_pumps_options(pathname, session_data):
-    if pathname != '/sensor-data' and pathname != '/du-lieu-cam-bien':
+    # accept both underscore and dash routes and the Vietnamese path
+    if pathname not in ('/sensor-data', '/sensor_data', '/du-lieu-cam-bien'):
         raise PreventUpdate
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
-    data = list_sensors(limit=200, offset=0, token=token)
+    # load pumps as the units to filter by
+    data = list_pumps(limit=1000, offset=0, token=token)
     opts = []
+    # add 'Tất cả' option (use empty string instead of None to avoid prop type issues)
+    opts.append({'label': 'Tất cả', 'value': ''})
     for it in (data.get('data') or []):
+        # label = ten_may_bom, value = ma_may_bom
         opts.append({'label': it.get('ten_may_bom') or str(it.get('ma_may_bom')), 'value': it.get('ma_may_bom')})
     return opts
 
 
 @callback(
-    Output('data-store', 'data'),
-    [Input('data-filter-pump', 'value'), Input('data-filter-date', 'value')],
+    Output('data-filter-date', 'value'),
+    [Input('data-filter-date-prev', 'n_clicks'), Input('data-filter-date-next', 'n_clicks'), Input('data-filter-date', 'n_blur')],
+    State('data-filter-date', 'value'),
+    prevent_initial_call=True
+)
+def navigate_date(prev_clicks, next_clicks, blur, current_value):
+    try:
+        if not current_value:
+            cur = datetime.date.today()
+        else:
+            cur = datetime.date.fromisoformat(str(current_value))
+    except Exception:
+        cur = datetime.date.today()
+
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    prop = ctx.triggered[0]['prop_id'].split('.')[0]
+    if prop == 'data-filter-date-prev':
+        new = cur - datetime.timedelta(days=1)
+        return str(new)
+    if prop == 'data-filter-date-next':
+        new = cur + datetime.timedelta(days=1)
+        return str(new)
+    # if blur or manual change, keep the value
+    return current_value
+
+
+@callback(
+    [Output('data-store', 'data'), Output('data-pagination-store', 'data'), Output('data-total', 'children')],
+    [Input('data-filter-pump', 'value'), Input('data-filter-date', 'value'), Input('data-page-store', 'data')],
     State('session-store', 'data')
 )
-def load_data(ma_may_bom, ngay, session_data):
+def load_data(ma_may_bom, ngay, page_store, session_data):
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
-    if ma_may_bom:
-        return get_data_by_pump(int(ma_may_bom), token=token)
+    page = 1
+    limit = 20
+    if page_store and isinstance(page_store, dict):
+        page = int(page_store.get('page', 1))
+        limit = int(page_store.get('limit', 20))
+    # default
+    data = {'data': []}
+    max_pages = 1
+    total_text = 'Tổng: 0'
+
+    # If a date filter is provided, use that. Otherwise, fetch by pump (ma_may_bom may be None meaning 'Tất cả').
     if ngay:
-        return get_data_by_date(ngay, token=token)
-    return {'data': []}
+        offset = (page - 1) * limit
+        try:
+            data = get_data_by_date(ngay, limit=limit, offset=offset, token=token)
+            if isinstance(data, dict) and data.get('total') is not None:
+                total = int(data.get('total') or 0)
+                max_pages = max(1, (total + limit - 1) // limit)
+                total_text = f'Tổng: {total}'
+            else:
+                total = len(data.get('data') or [])
+                total_text = f'Tổng: {total}'
+        except Exception:
+            data = {'data': []}
+            max_pages = 1
+            total_text = 'Tổng: 0'
+        return data, {'max': max_pages}, total_text
+
+    # fetch by pump (ma_may_bom can be None for 'Tất cả')
+    offset = (page - 1) * limit
+    try:
+        # if ma_may_bom is not None and is integer-like, pass as int; else pass None
+        pump_param = int(ma_may_bom) if (ma_may_bom is not None and str(ma_may_bom).isdigit()) else None
+        data = get_data_by_pump(pump_param, limit=limit, offset=offset, token=token)
+        if isinstance(data, dict) and data.get('total') is not None:
+            total = int(data.get('total') or 0)
+            max_pages = max(1, (total + limit - 1) // limit)
+            total_text = f'Tổng: {total}'
+        else:
+            total = len(data.get('data') or [])
+            total_text = f'Tổng: {total}'
+    except Exception:
+        data = {'data': []}
+        max_pages = 1
+        total_text = 'Tổng: 0'
+    return data, {'max': max_pages}, total_text
+
+    return data, {'max': 1}, total_text
+
+
+@callback(
+    Output('data-page-store', 'data', allow_duplicate=True),
+    Input('data-limit-dropdown', 'value'),
+    State('data-page-store', 'data'),
+    prevent_initial_call=True
+)
+def set_limit(limit_value, current):
+    data = current or {'page': 1, 'limit': 20}
+    try:
+        data['limit'] = int(limit_value)
+    except Exception:
+        data['limit'] = 20
+    # reset to first page when limit changes
+    data['page'] = 1
+    return data
 
 
 @callback(
@@ -116,8 +216,13 @@ def load_data(ma_may_bom, ngay, session_data):
     Input('data-store', 'data')
 )
 def render_table(data):
-    if not data or 'data' not in data:
-        return dbc.Alert('Không có dữ liệu.', color='info')
+    if not data or 'data' not in data or not data.get('data'):
+        return html.Div(className='empty-state', children=[
+            html.Div(className='empty-icon', children=[
+                html.Img(src='/assets/img/empty-box.svg', style={'width':'64px','height':'64px'})
+            ]),
+            html.Div('Không có dữ liệu', className='empty-text')
+        ])
     rows = []
     for d in data.get('data', []):
         rows.append(_data_row_item(d))
@@ -127,6 +232,113 @@ def render_table(data):
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
     return table
+
+
+def _build_pagination(current, max_pages, window=3):
+    # build a compact pagination: show first, last, and window around current
+    items = []
+    # previous
+    prev_disabled = (current <= 1)
+    items.append(dbc.Button(html.I(className='fas fa-chevron-left'), id={'type': 'data-page-prev', 'index': 'prev'}, color='light', size='sm', className='me-1', disabled=prev_disabled))
+
+    def page_button(p):
+        active = (p == current)
+        return dbc.Button(str(p), id={'type': 'data-page', 'index': str(p)}, color='primary' if active else 'light', size='sm', className='me-1')
+
+    if max_pages <= 7:
+        for p in range(1, max_pages+1):
+            items.append(page_button(p))
+    else:
+        left = max(1, current - window)
+        right = min(max_pages, current + window)
+        if left > 1:
+            items.append(page_button(1))
+            if left > 2:
+                items.append(html.Span('...', className='mx-1'))
+        for p in range(left, right+1):
+            items.append(page_button(p))
+        if right < max_pages:
+            if right < max_pages - 1:
+                items.append(html.Span('...', className='mx-1'))
+            items.append(page_button(max_pages))
+
+    # next
+    next_disabled = (current >= max_pages)
+    items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'data-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled))
+    return dbc.ButtonGroup(items)
+
+
+@callback(
+    Output('data-pagination', 'children'),
+    [Input('data-pagination-store', 'data'), Input('data-page-store', 'data')]
+)
+def render_pagination(pagination_meta, page_store):
+    max_pages = 1
+    current = 1
+    try:
+        if pagination_meta and isinstance(pagination_meta, dict):
+            max_pages = int(pagination_meta.get('max', 1) or 1)
+    except Exception:
+        max_pages = 1
+    try:
+        if page_store and isinstance(page_store, dict):
+            current = int(page_store.get('page', 1) or 1)
+    except Exception:
+        current = 1
+    if current < 1:
+        current = 1
+    if current > max_pages:
+        current = max_pages
+    return _build_pagination(current, max_pages)
+
+
+@callback(
+    Output('data-page-store', 'data'),
+    [Input({'type': 'data-page', 'index': dash.ALL}, 'n_clicks'), Input({'type': 'data-page-prev', 'index': dash.ALL}, 'n_clicks'), Input({'type': 'data-page-next', 'index': dash.ALL}, 'n_clicks')],
+    State('data-page-store', 'data'), State('data-pagination-store', 'data'),
+    prevent_initial_call=True
+)
+def handle_pagination_click(page_clicks, prev_clicks, next_clicks, current, pagination_meta):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    trig = ctx.triggered[0]
+    pid = trig['prop_id'].split('.')[0]
+    try:
+        import json
+        obj = json.loads(pid)
+    except Exception:
+        raise PreventUpdate
+    data = current or {'page': 1, 'limit': 20}
+    # determine max pages from pagination_meta to clamp
+    max_pages = 1
+    try:
+        if pagination_meta and isinstance(pagination_meta, dict):
+            max_pages = int(pagination_meta.get('max', 1) or 1)
+    except Exception:
+        max_pages = 1
+    t = obj.get('type')
+    idx = obj.get('index')
+    if t == 'data-page':
+        # clamp target page
+        target = int(idx)
+        if target < 1:
+            target = 1
+        if target > max_pages:
+            target = max_pages
+        data['page'] = target
+        return data
+    if t == 'data-page-prev':
+        data['page'] = max(1, int(data.get('page', 1)) - 1)
+        return data
+    if t == 'data-page-next':
+        # clamp next to max_pages
+        nextp = int(data.get('page', 1)) + 1
+        if nextp > max_pages:
+            nextp = max_pages
+        data['page'] = nextp
+        return data
+    raise PreventUpdate
 
 
 @callback(
@@ -171,3 +383,6 @@ def save_data(n_save, ngay, luu_luong, do_am_dat, nhiet_do, do_am, mua, so_xung,
     # reload store by date
     data = get_data_by_date(ngay, token=token)
     return data, False
+
+
+

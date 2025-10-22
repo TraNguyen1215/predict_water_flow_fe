@@ -399,6 +399,152 @@ footer {
     }
 }
 
+/* Topbar used above tables */
+.topbar {
+    width: 100%;
+    gap: 0.75rem;
+    padding: 0.5rem 0.25rem;
+}
+.topbar-left {
+    flex: 0 0 auto;
+}
+.topbar-center {
+    flex: 1 1 auto;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+}
+.topbar-right {
+    flex: 0 0 auto;
+    gap: 0.5rem;
+}
+.topbar .topbar-search {
+    max-width: 420px;
+}
+.topbar .topbar-unit {
+    min-width: 140px;
+    max-width: 240px;
+}
+.topbar .topbar-date {
+    max-width: 180px;
+}
+
+@media (max-width: 576px) {
+    .topbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .topbar-center {
+        justify-content: stretch;
+        flex-direction: column;
+    }
+    .topbar-right { justify-content: flex-end; }
+}
+
+    /* separator under topbar */
+    .topbar { border-bottom: 1px solid #eef2f7; padding-bottom: 0.5rem; }
+
+/* Empty state centered message */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    /* make the empty state more centered in the viewport */
+    min-height: 60vh;
+    color: var(--primary-color-dark);
+}
+.empty-state .empty-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0.75rem;
+    opacity: 0.9;
+}
+.empty-state .empty-text {
+    font-size: 1.05rem;
+    color: #334155;
+}
+
+.pagination-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 1rem 0;
+    padding: 6px;
+    background: transparent; 
+    width: 100%;
+}
+
+.topbar-unit { width: 200px !important; }
+
+.topbar .btn-primary {
+    border-radius: 18px;
+    padding: 0.38rem 0.9rem;
+    box-shadow: 0 6px 14px rgba(3,88,163,0.06);
+    font-weight: 600;
+
+    .topbar-limit { width: 120px !important; }
+
+    .pagination-footer .total-text { margin-right: 1rem; font-weight: 600; color: #334155; }
+
+    /* Scrollable table container so scrolling doesn't affect pagination */
+    .table-scroll { max-height: 55vh; overflow-y: auto; padding-right: 8px; }
+}
+
+.pagination-footer .pagination {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.35rem 0.6rem;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(11, 37, 80, 0.06);
+    border: 1px solid #eef4fb;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pagination-footer .pagination::-webkit-scrollbar { height: 8px; }
+.pagination-footer .pagination::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.06); border-radius: 8px; }
+
+.pagination-footer .page-item .page-link {
+    color: var(--primary-color-dark);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    min-width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.pagination-footer .page-item.active .page-link {
+    background: #fff;
+    border: 1px solid rgba(3,88,163,0.12);
+    color: var(--primary-color);
+    font-weight: 700;
+    box-shadow: 0 6px 12px rgba(3,88,163,0.06);
+}
+
+.pagination-footer .page-item .page-link:hover {
+    background: rgba(3,88,163,0.04);
+    color: var(--primary-color);
+}
+
+.pagination-footer .page-item.disabled .page-link {
+    color: #9aa8bf;
+    opacity: 0.7;
+}
+
+@media (max-width: 576px) {
+    .pagination-footer .pagination { padding: 0.25rem 0.4rem; }
+    .pagination-footer .page-item .page-link { padding: 0.28rem 0.45rem; min-width: 30px; height: 30px; }
+}
+
 /* Account page specific styles: clearer, larger, accessible */
 .account-view {
     background: linear-gradient(180deg, var(--card-bg), #f9fbff);

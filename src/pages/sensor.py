@@ -2,6 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from components.navbar import create_navbar
+from components.topbar import TopBar
 from api.sensor import list_sensors, create_sensor, update_sensor, delete_sensor, get_sensor, get_sensor_types
 import dash
 import datetime
@@ -26,23 +27,25 @@ layout = html.Div([
     create_navbar(is_authenticated=True),
     
     dbc.Container([
-        dbc.Row([
-            dbc.Col(html.H3('Quản lý cảm biến'), width=8),
-            dbc.Col(dbc.Button('Thêm cảm biến', id='open-add-sensor', color='primary'), width=4, className='text-end')
-        ], className='my-3'),
-
-        dbc.Row([
-            dbc.Col(dbc.Input(id='sensor-search', placeholder='Tìm kiếm (theo tên, mô tả, loại, mã)', type='text'))
-        ], className='mb-3', style={"max-width": "400px"}),
+        dbc.Row([dbc.Col(TopBar('Quản lý cảm biến', search_id='sensor-search', add_button={'id':'open-add-sensor','label':'Thêm cảm biến'}))], className='my-3'),
 
         dbc.Row([
             dbc.Col(dcc.Loading(html.Div(id='sensor-table-container')))
+        ]),
+        dbc.Row([
+            dbc.Col(html.Div(id='sensor-total', className='pt-2')),
+        ], className='mt-2'),
+
+        dbc.Row([
+            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='sensor-pagination')]))
         ]),
 
     dcc.Store(id='sensor-data-store'),
     dcc.Store(id='sensor-types-store'),
     dcc.Store(id='sensor-selected-type'),
     dcc.Store(id='sensor-delete-id'),
+    dcc.Store(id='sensor-page-store', data={'page': 1, 'limit': 20}),
+    dcc.Store(id='sensor-pagination-store', data={'max': 1}),
 
         dbc.Modal([
             dbc.ModalHeader(id='sensor-modal-title'),
@@ -82,19 +85,40 @@ layout = html.Div([
 
 
 @callback(
-    Output('sensor-data-store', 'data', allow_duplicate=True),
-    Input('url', 'pathname'),
+    [Output('sensor-data-store', 'data', allow_duplicate=True), Output('sensor-pagination-store', 'data'), Output('sensor-total', 'children')],
+    [Input('url', 'pathname'), Input('sensor-page-store', 'data')],
     State('session-store', 'data'),
     prevent_initial_call='initial_duplicate'
 )
-def load_sensors(pathname, session_data):
+def load_sensors(pathname, page_store, session_data):
     if pathname != '/sensor':
         raise PreventUpdate
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
-    data = list_sensors(limit=200, offset=0, token=token)
-    return data
+    page = 1
+    limit = 20
+    if page_store and isinstance(page_store, dict):
+        page = int(page_store.get('page', 1))
+        limit = int(page_store.get('limit', 20))
+    offset = (page - 1) * limit
+    data = {'data': []}
+    max_pages = 1
+    total_text = 'Tổng: 0'
+    try:
+        data = list_sensors(limit=limit, offset=offset, token=token)
+        if isinstance(data, dict) and data.get('total') is not None:
+            total = int(data.get('total') or 0)
+            max_pages = max(1, (total + limit - 1) // limit)
+            total_text = f'Tổng: {total}'
+        else:
+            total = len(data.get('data') or [])
+            total_text = f'Tổng: {total}'
+    except Exception:
+        data = {'data': []}
+        max_pages = 1
+        total_text = 'Tổng: 0'
+    return data, {'max': max_pages}, total_text
 
 
 @callback(
@@ -146,6 +170,107 @@ def store_selected_type(value, options):
                 break
     return {'ma_loai_cam_bien': int(value) if isinstance(value, (int, str)) and str(value).isdigit() else value, 'ten_loai_cam_bien': label}
 
+
+def _build_sensor_pagination(current, max_pages, window=3):
+    items = []
+    prev_disabled = (current <= 1)
+    items.append(dbc.Button(html.I(className='fas fa-chevron-left'), id={'type': 'sensor-page-prev', 'index': 'prev'}, color='light', size='sm', className='me-1', disabled=prev_disabled))
+
+    def page_button(p):
+        active = (p == current)
+        return dbc.Button(str(p), id={'type': 'sensor-page', 'index': str(p)}, color='primary' if active else 'light', size='sm', className='me-1')
+
+    if max_pages <= 7:
+        for p in range(1, max_pages+1):
+            items.append(page_button(p))
+    else:
+        left = max(1, current - window)
+        right = min(max_pages, current + window)
+        if left > 1:
+            items.append(page_button(1))
+            if left > 2:
+                items.append(html.Span('...', className='mx-1'))
+        for p in range(left, right+1):
+            items.append(page_button(p))
+        if right < max_pages:
+            if right < max_pages - 1:
+                items.append(html.Span('...', className='mx-1'))
+            items.append(page_button(max_pages))
+
+    next_disabled = (current >= max_pages)
+    items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'sensor-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled))
+    return dbc.ButtonGroup(items)
+
+
+@callback(
+    Output('sensor-pagination', 'children'),
+    [Input('sensor-pagination-store', 'data'), Input('sensor-page-store', 'data')]
+)
+def render_sensor_pagination(pagination_meta, page_store):
+    max_pages = 1
+    current = 1
+    try:
+        if pagination_meta and isinstance(pagination_meta, dict):
+            max_pages = int(pagination_meta.get('max', 1) or 1)
+    except Exception:
+        max_pages = 1
+    try:
+        if page_store and isinstance(page_store, dict):
+            current = int(page_store.get('page', 1) or 1)
+    except Exception:
+        current = 1
+    if current < 1:
+        current = 1
+    if current > max_pages:
+        current = max_pages
+    return _build_sensor_pagination(current, max_pages)
+
+
+@callback(
+    Output('sensor-page-store', 'data'),
+    [Input({'type': 'sensor-page', 'index': dash.ALL}, 'n_clicks'), Input({'type': 'sensor-page-prev', 'index': dash.ALL}, 'n_clicks'), Input({'type': 'sensor-page-next', 'index': dash.ALL}, 'n_clicks')],
+    State('sensor-page-store', 'data'), State('sensor-pagination-store', 'data'),
+    prevent_initial_call=True
+)
+def handle_sensor_pagination_click(page_clicks, prev_clicks, next_clicks, current, pagination_meta):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    trig = ctx.triggered[0]
+    pid = trig['prop_id'].split('.')[0]
+    try:
+        import json
+        obj = json.loads(pid)
+    except Exception:
+        raise PreventUpdate
+    data = current or {'page': 1, 'limit': 20}
+    max_pages = 1
+    try:
+        if pagination_meta and isinstance(pagination_meta, dict):
+            max_pages = int(pagination_meta.get('max', 1) or 1)
+    except Exception:
+        max_pages = 1
+    t = obj.get('type')
+    idx = obj.get('index')
+    if t == 'sensor-page':
+        target = int(idx)
+        if target < 1:
+            target = 1
+        if target > max_pages:
+            target = max_pages
+        data['page'] = target
+        return data
+    if t == 'sensor-page-prev':
+        data['page'] = max(1, int(data.get('page', 1)) - 1)
+        return data
+    if t == 'sensor-page-next':
+        nextp = int(data.get('page', 1)) + 1
+        if nextp > max_pages:
+            nextp = max_pages
+        data['page'] = nextp
+        return data
+    raise PreventUpdate
+
 @callback(
     Output('sensor-types-store', 'data', allow_duplicate=True),
     [Input('open-add-sensor', 'n_clicks'), Input({'type': 'edit-sensor', 'index': dash.ALL}, 'n_clicks')],
@@ -174,11 +299,19 @@ def fetch_types_on_modal_open(n_add, edit_clicks, session_data):
     [Input('sensor-data-store', 'data'), Input('sensor-search', 'value')]
 )
 def render_table(data, search):
-    if not data or 'data' not in data:
-        return dbc.Alert('Không có dữ liệu cảm biến.', color='info')
+    if not data or 'data' not in data or not data.get('data'):
+        return html.Div(className='empty-state', children=[
+            html.Div(className='empty-icon', children=[html.Img(src='/assets/img/empty-box.svg', style={'width':'64px','height':'64px'})]),
+            html.Div('Không có dữ liệu cảm biến.', className='empty-text')
+        ])
 
     rows = []
-    for s in data.get('data', []):
+    items = list(data.get('data', []) or [])
+    try:
+        items.sort(key=lambda x: int(x.get('ma_cam_bien') or 0))
+    except Exception:
+        items = items
+    for s in items:
         text = ' '.join([
             str(s.get('ten_cam_bien') or ''),
             str(s.get('mo_ta') or ''),
@@ -277,7 +410,7 @@ def save_or_delete(n_save, edit_id, ten, mo_ta, ma_may_bom, ngay_lap_dat, loai, 
         else:
             create_sensor(payload, token=token)
 
-        data = list_sensors(limit=200, offset=0, token=token)
+        data = list_sensors(limit=20, offset=0, token=token)
         # close modal after save
         return data, False
 
@@ -321,7 +454,7 @@ def perform_delete(n_confirm, delete_id, session_data):
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
     success, msg = delete_sensor(delete_id, token=token)
-    data = list_sensors(limit=200, offset=0, token=token)
+    data = list_sensors(limit=20, offset=0, token=token)
     # ensure any sensor modal is closed as well
     return data, False, False
 
