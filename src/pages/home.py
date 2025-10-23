@@ -58,8 +58,16 @@ def fetch_sensor_data():
                 print(f"Missing required column: {col}")
                 return create_empty_dataframe()
         
-        df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'])
-        df['ngay'] = pd.to_datetime(df['ngay'])
+        df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'], errors='coerce')
+        try:
+            if df['thoi_gian_tao'].dt.tz is None:
+                df['thoi_gian_tao'] = df['thoi_gian_tao'].dt.tz_localize('Asia/Bangkok')
+            else:
+                df['thoi_gian_tao'] = df['thoi_gian_tao'].dt.tz_convert('Asia/Bangkok')
+        except Exception:
+            df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'])
+
+        df['ngay'] = pd.to_datetime(df['ngay'], errors='coerce')
         
         df = df.rename(columns={
             'thoi_gian_tao': 'date',
@@ -84,7 +92,6 @@ def fetch_sensor_data():
         print(f"Error fetching sensor data: {e}")
         return create_empty_dataframe()
 
-# Initialize with empty DataFrame with renamed columns
 empty_df = create_empty_dataframe()
 df = pd.DataFrame({
     'date': [],
@@ -183,11 +190,13 @@ layout = html.Div([
                                     )
                                 ],
                                 'layout': go.Layout(
-                                    xaxis={
-                                        'title': 'Thời gian',
-                                        'gridcolor': '#f0f0f0',
-                                        'rangeslider': {'visible': True}
-                                    },
+                                                            xaxis={
+                                                                'title': 'Thời gian',
+                                                                'type': 'date',
+                                                                'tickformat': '%H:%M\n%d/%m/%Y',
+                                                                'gridcolor': '#f0f0f0',
+                                                                'rangeslider': {'visible': True}
+                                                            },
                                     yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
                                     hovermode='x unified',
                                     plot_bgcolor='white',
@@ -288,7 +297,7 @@ layout = html.Div([
                                     )
                                 ],
                                 'layout': go.Layout(
-                                    xaxis={'title': 'Thời gian (30 mẫu gần nhất)', 'gridcolor': '#f0f0f0'},
+                                xaxis={'title': 'Thời gian (30 mẫu gần nhất)', 'type': 'date', 'tickformat': '%d/%m %H:%M', 'gridcolor': '#f0f0f0'},
                                     yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
                                     yaxis2={'title': 'Độ ẩm đất (%)', 'overlaying': 'y', 'side': 'right'},
                                     yaxis3={'title': 'Nhiệt độ (°C)', 'overlaying': 'y', 'side': 'right', 'position': 0.95},
@@ -356,10 +365,9 @@ layout = html.Div([
         
     ], fluid=True, className="px-4"),
     
-    # Add interval component for periodic updates
     dcc.Interval(
         id='interval-component',
-        interval=60*1000,  # Update every 60 seconds
+        interval=5*1000,
         n_intervals=0
     )
 ], className="page-container")
@@ -436,6 +444,7 @@ def fetch_weather_from_hash(hash_value):
     ],
     [
         Input('interval-component', 'n_intervals'),
+        Input('url', 'pathname'),
         Input('url', 'hash'),
         Input('show-forecast', 'n_clicks'),
         Input('forecast-length', 'value'),
@@ -446,13 +455,14 @@ def fetch_weather_from_hash(hash_value):
         State('session-store', 'data')
     ]
 )
-def update_all(n, hash_value, n_clicks, forecast_length, session_modified, stored, session):
+def update_all(n, pathname, hash_value, n_clicks, forecast_length, session_modified, stored, session):
+    if pathname not in ('', '/', None):
+        raise PreventUpdate
     df = fetch_sensor_data()
     
     if df.empty:
         raise PreventUpdate
     
-    # Update flow rate chart
     flow_rate_figure = {
         'data': [
             go.Scatter(
