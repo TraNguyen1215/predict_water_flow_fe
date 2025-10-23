@@ -32,11 +32,11 @@ layout = html.Div([
     dbc.Row([dbc.Col(TopBar('Dữ liệu cảm biến', search_id=None, date_id='data-filter-date', add_button={'id':'open-add-data','label':'Thêm dữ liệu'}, unit_id='data-filter-pump', extra_left=[dcc.Dropdown(id='data-limit-dropdown', options=[{'label':'20','value':20},{'label':'50','value':50},{'label':'200','value':200}], value=20, clearable=False, className='topbar-limit me-2')], show_add=False, date_last=True))], className='my-3'),
 
         dbc.Row([
-            dbc.Col(dcc.Loading(html.Div(id='data-table-container')))
+            dbc.Col(html.Div(className='table-area', children=[
+                dcc.Loading(html.Div(id='data-table-container')),
+                html.Div(className='pagination-footer', children=[html.Div(id='data-pagination'), html.Div(id='data-total', className='pt-2 total-text')])
+            ]))
         ]),
-        dbc.Row([
-            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='data-pagination'), html.Div(id='data-total', className='pt-2 total-text')]))
-        ], align='center'),
 
     dcc.Store(id='data-store'),
     dcc.Store(id='data-edit-id'),
@@ -265,7 +265,7 @@ def render_table(data, page_store):
         html.Thead(html.Tr([html.Th('STT'), html.Th('Ngày'), html.Th('Lưu lượng'), html.Th('Độ ẩm đất'), html.Th('Nhiệt độ'), html.Th('Độ ẩm'), html.Th('Mưa'), html.Th('Số xung'), html.Th('Tổng thể tích'), html.Th('Ghi chú')])),
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
-    return table
+    return html.Div(className='table-scroll', children=[table])
 
 
 def _build_pagination(current, max_pages, window=3):

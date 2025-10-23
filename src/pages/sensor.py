@@ -18,9 +18,8 @@ def _sensor_row_row_item(s):
         html.Td(s.get('ngay_lap_dat')),
         html.Td(dbc.ButtonGroup([
             dbc.Button('Sửa', id={'type': 'edit-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-outline-edit', size='sm'),
-            html.Div(style={'width':'8px'}),
             dbc.Button('Xóa', id={'type': 'delete-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-outline-delete', size='sm')
-        ]), style={'text-align': 'center'})
+        ]), className='col-action')
     ])
 
 
@@ -31,10 +30,10 @@ layout = html.Div([
         dbc.Row([dbc.Col(TopBar('Quản lý cảm biến', search_id='sensor-search', add_button={'id':'open-add-sensor','label':'Thêm cảm biến'}))], className='my-3'),
 
         dbc.Row([
-            dbc.Col(dcc.Loading(html.Div(id='sensor-table-container')))
-        ]),
-        dbc.Row([
-            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='sensor-pagination'), html.Div(id='sensor-total', className='pt-2 total-text')]))
+            dbc.Col(html.Div(className='table-area', children=[
+                dcc.Loading(html.Div(id='sensor-table-container')),
+                html.Div(className='pagination-footer', children=[html.Div(id='sensor-pagination'), html.Div(id='sensor-total', className='pt-2 total-text')])
+            ]))
         ]),
 
     dcc.Store(id='sensor-data-store'),

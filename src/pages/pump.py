@@ -19,7 +19,7 @@ def _pump_row_item(p):
         html.Td(dbc.ButtonGroup([
             dbc.Button('Sửa', id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-edit', size='sm'),
             dbc.Button('Xóa', id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-delete', size='sm')
-        ]))
+        ]), className='col-action')
     ])
 
 
@@ -29,11 +29,10 @@ layout = html.Div([
         dbc.Row([dbc.Col(TopBar('Quản lý máy bơm', search_id='pump-search', add_button={'id':'open-add-pump','label':'Thêm máy bơm'}))], className='my-3'),
 
         dbc.Row([
-            dbc.Col(dcc.Loading(html.Div(id='pump-table-container')))
-        ]),
-
-        dbc.Row([
-            dbc.Col(html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination'), html.Div(id='pump-total', className='pt-2 total-text')]))
+            dbc.Col(html.Div(className='table-area', children=[
+                dcc.Loading(html.Div(id='pump-table-container')),
+                html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination'), html.Div(id='pump-total', className='pt-2 total-text')])
+            ]))
         ]),
 
         dcc.Store(id='pump-data-store'),

@@ -148,7 +148,6 @@ body {
 .btn-add i { font-size: 0.95rem; }
 .btn-add:hover { transform: translateY(-2px); }
 
-/* Edit button (green) and Delete/Cancel (red) */
 .btn-edit {
     background: #16a34a !important; /* green */
     border: none !important;
@@ -173,24 +172,23 @@ body {
 
 .table thead th, .table thead td { text-align: left; vertical-align: middle; }
 
-/* Table action buttons: rectangular outline buttons that fill on hover */
 .table .btn-action {
-    padding: 0.28rem 0.6rem;
-    border-radius: 0; /* no rounded corners */
+    padding: 0.22rem 0.5rem;
+    border-radius: 0;
     background: transparent;
     border: 1px solid rgba(15,23,42,0.08);
-    color: #475569; /* muted slate */
+    color: #475569;
     box-shadow: none;
     transform: none;
     min-width: 68px;
     text-align: center;
+    /* font-size: 13px;
+    line-height: 1; */
     transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
 
-/* space between action buttons */
 .table .btn-action + .btn-action { margin-left: 10px; }
 
-/* hover: fill with green or red and white text */
 .table .btn-action.btn-outline-edit:hover {
     background: var(--success-color);
     color: #fff;
@@ -202,7 +200,6 @@ body {
     border-color: var(--danger-color);
 }
 
-/* default outline colors: green text+border for edit, red text+border for delete */
 .table .btn-action.btn-outline-edit {
     color: var(--success-color);
     border-color: var(--success-color);
@@ -214,8 +211,30 @@ body {
     background: transparent;
 }
 
-/* ensure no lift effect on these buttons */
 .table .btn-action:hover { transform: none; }
+
+.table-area {
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+}
+.table-scroll {
+    overflow: auto;
+    flex: 1 1 auto;
+}
+.table-area .pagination-footer {
+    flex: 0 0 auto;
+    padding: 12px 0;
+    background: transparent;
+    position: fixed;
+    bottom: 55px;
+}
+
+.table td.col-action, .table th.col-action {
+    width: 140px;
+    max-width: 180px;
+    text-align: center;
+}
 
 .topbar-date-btn,
 .topbar-date {
@@ -656,7 +675,7 @@ footer {
 
 .pagination-footer .total-text { margin-left: 0.5rem; font-weight: 600; color: #334155; }
 
-.table-scroll { max-height: 55vh; overflow-y: auto; padding-right: 8px; }
+.table-scroll { max-height: 69vh; overflow-y: auto; padding-right: 8px; }
 
 .pagination-footer .pagination {
     display: flex;
