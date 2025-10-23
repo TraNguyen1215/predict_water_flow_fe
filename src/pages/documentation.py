@@ -140,12 +140,6 @@ layout = html.Div([
         ])
 
     ], fluid=True, className="px-4"),
-
-    html.Footer([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(html.P("© 2025 Dự Đoán Lưu Lượng Nước — Tài liệu chỉ đọc", className="text-center mb-0"), width=12)
-            ])
-        ])
-    ], className="py-4 mt-5", style={"background-color": "#023E73"})
+    
+    html.Div(style={"height": "80px"}),
 ], className="page-container")
