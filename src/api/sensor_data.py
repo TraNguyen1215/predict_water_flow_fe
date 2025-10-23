@@ -30,7 +30,7 @@ def get_data_by_pump(ma_may_bom: Optional[int] = None, limit: int = 20, offset: 
         return {'data': [], 'limit': limit, 'offset': offset, 'total': 0, 'error': str(e)}
 
 
-def get_data_by_date(ngay: str, limit: int = 20, offset: int = 0, token: Optional[str] = None) -> Dict[str, Any]:
+def get_data_by_date(ngay: str, token: Optional[str] = None, limit: Optional[int] = None, offset: Optional[int] = None) -> Dict[str, Any]:
     """Get sensor data for a given date (ngay in YYYY-MM-DD)."""
     try:
         headers = {}

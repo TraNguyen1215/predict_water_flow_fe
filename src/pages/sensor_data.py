@@ -177,7 +177,7 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
     if ngay:
         offset = (page - 1) * limit
         try:
-            data = get_data_by_date(ngay, limit=limit, offset=offset, token=token)
+            data = get_data_by_date(ngay, token=token, limit=limit, offset=offset)
             if isinstance(data, dict) and data.get('total') is not None:
                 total = int(data.get('total') or 0)
                 max_pages = max(1, (total + limit - 1) // limit)

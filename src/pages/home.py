@@ -10,23 +10,93 @@ from components.weather_widget import create_weather_widget
 from dash.exceptions import PreventUpdate
 import requests
 import json
+from api.sensor_data import get_data_by_date
+import dash
 
-def generate_sample_data():
-    dates = pd.date_range(start='2025-01-01', end='2025-10-16', freq='D')
-    np.random.seed(42)
-    flow_rate = 100 + np.cumsum(np.random.randn(len(dates)) * 2)
-    pressure = 50 + np.cumsum(np.random.randn(len(dates)) * 0.5)
-    temperature = 20 + 5 * np.sin(np.arange(len(dates)) * 2 * np.pi / 365)
-    
-    df = pd.DataFrame({
-        'date': dates,
-        'flow_rate': flow_rate,
-        'pressure': pressure,
-        'temperature': temperature
+def create_empty_dataframe():
+    return pd.DataFrame({
+        'ma_du_lieu': [],
+        'ma_may_bom': [],
+        'ma_nguoi_dung': [],
+        'ngay': [],
+        'luu_luong_nuoc': [],
+        'do_am_dat': [],
+        'nhiet_do': [],
+        'do_am': [],
+        'mua': [],
+        'so_xung': [],
+        'tong_the_tich': [],
+        'thoi_gian_tao': [],
+        'ghi_chu': []
     })
-    return df
 
-df = generate_sample_data()
+def fetch_sensor_data():
+    try:
+        token = dash.callback_context.states.get('session-store.data', {}).get('token')
+        
+        if not token:
+            print("No authentication token found")
+            return create_empty_dataframe()
+        
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        response_data = get_data_by_date(today, token)
+
+        if isinstance(response_data, dict) and 'data' in response_data:
+            data = response_data['data']
+        else:
+            data = response_data
+        
+        if not data or not isinstance(data, list):
+            return create_empty_dataframe()
+            
+        df = pd.DataFrame.from_records(data)
+        
+        required_columns = ['thoi_gian_tao', 'luu_luong_nuoc', 'do_am_dat', 'nhiet_do', 'do_am']
+        for col in required_columns:
+            if col not in df.columns:
+                print(f"Missing required column: {col}")
+                return create_empty_dataframe()
+        
+        df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'])
+        df['ngay'] = pd.to_datetime(df['ngay'])
+        
+        df = df.rename(columns={
+            'thoi_gian_tao': 'date',
+            'luu_luong_nuoc': 'flow_rate',
+            'do_am_dat': 'soil_moisture',
+            'nhiet_do': 'temperature',
+            'do_am': 'humidity',
+            'mua': 'rain',
+            'so_xung': 'pulse_count',
+            'tong_the_tich': 'total_volume',
+            'ghi_chu': 'notes'
+        })
+        
+        df = df.sort_values('date')
+        
+        numeric_columns = ['flow_rate', 'soil_moisture', 'temperature', 'humidity']
+        for col in numeric_columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        return df
+    except Exception as e:
+        print(f"Error fetching sensor data: {e}")
+        return create_empty_dataframe()
+
+# Initialize with empty DataFrame with renamed columns
+empty_df = create_empty_dataframe()
+df = pd.DataFrame({
+    'date': [],
+    'flow_rate': [],
+    'soil_moisture': [],
+    'temperature': [],
+    'humidity': [],
+    'rain': [],
+    'pulse_count': [],
+    'total_volume': [],
+    'notes': []
+})
 
 layout = html.Div([
     create_navbar(is_authenticated=False),
@@ -44,7 +114,7 @@ layout = html.Div([
                     dbc.CardBody([
                         html.Div([
                             html.I(className="fas fa-tint fa-3x text-primary mb-3"),
-                            html.H3(f"{df['flow_rate'].iloc[-1]:.1f} L/s", className="mb-2"),
+                            html.H3(id='flow-rate', children=f"{df['flow_rate'].iloc[-1]:.1f} L/s" if not df.empty else "N/A", className="mb-2"),
                             html.P("Lưu lượng hiện tại", className="text-muted mb-0")
                         ], className="text-center")
                     ])
@@ -55,9 +125,9 @@ layout = html.Div([
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
-                            html.I(className="fas fa-gauge-high fa-3x text-success mb-3"),
-                            html.H3(f"{df['pressure'].iloc[-1]:.1f} Bar", className="mb-2"),
-                            html.P("Áp suất", className="text-muted mb-0")
+                            html.I(className="fas fa-seedling fa-3x text-success mb-3"),
+                            html.H3(id='soil-moisture', children=f"{df['soil_moisture'].iloc[-1]:.1f}%" if not df.empty else "N/A", className="mb-2"),
+                            html.P("Độ ẩm đất", className="text-muted mb-0")
                         ], className="text-center")
                     ])
                 ], className="shadow-sm stat-card")
@@ -68,7 +138,7 @@ layout = html.Div([
                     dbc.CardBody([
                         html.Div([
                             html.I(className="fas fa-temperature-half fa-3x text-warning mb-3"),
-                            html.H3(f"{df['temperature'].iloc[-1]:.1f}°C", className="mb-2"),
+                            html.H3(id='temperature', children=f"{df['temperature'].iloc[-1]:.1f}°C" if not df.empty else "N/A", className="mb-2"),
                             html.P("Nhiệt độ", className="text-muted mb-0")
                         ], className="text-center")
                     ])
@@ -79,9 +149,9 @@ layout = html.Div([
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
-                            html.I(className="fas fa-check-circle fa-3x text-info mb-3"),
-                            html.H3("98.5%", className="mb-2"),
-                            html.P("Độ chính xác", className="text-muted mb-0")
+                            html.I(className="fas fa-droplet fa-3x text-info mb-3"),
+                            html.H3(id='humidity', children=f"{df['humidity'].iloc[-1]:.1f}%" if not df.empty else "N/A", className="mb-2"),
+                            html.P("Độ ẩm không khí", className="text-muted mb-0")
                         ], className="text-center")
                     ])
                 ], className="shadow-sm stat-card")
@@ -103,8 +173,8 @@ layout = html.Div([
                             figure={
                                 'data': [
                                     go.Scatter(
-                                        x=df['date'],
-                                        y=df['flow_rate'],
+                                        x=df['date'] if not df.empty else [],
+                                        y=df['flow_rate'] if not df.empty else [],
                                         mode='lines',
                                         name='Lưu lượng',
                                         line=dict(color='#1f77b4', width=3),
@@ -113,7 +183,11 @@ layout = html.Div([
                                     )
                                 ],
                                 'layout': go.Layout(
-                                    xaxis={'title': 'Ngày', 'gridcolor': '#f0f0f0'},
+                                    xaxis={
+                                        'title': 'Thời gian',
+                                        'gridcolor': '#f0f0f0',
+                                        'rangeslider': {'visible': True}
+                                    },
                                     yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
                                     hovermode='x unified',
                                     plot_bgcolor='white',
@@ -121,45 +195,45 @@ layout = html.Div([
                                     margin=dict(l=50, r=20, t=20, b=50)
                                 )
                             },
-                            config={'displayModeBar': False}
+                            config={'displayModeBar': True, 'scrollZoom': True}
                         )
                     ])
                 ], className="shadow-sm mb-4")
-            ], md=8),
+            ], md=12),
             
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5([
-                            html.I(className="fas fa-chart-pie me-2"),
-                            "Phân Tích Dữ Liệu"
-                        ], className="mb-0")
-                    ]),
-                    dbc.CardBody([
-                        dcc.Graph(
-                            id='distribution-chart',
-                            figure={
-                                'data': [
-                                    go.Box(
-                                        y=df['flow_rate'],
-                                        name='Lưu lượng',
-                                        marker=dict(color='#1f77b4'),
-                                        boxmean='sd'
-                                    )
-                                ],
-                                'layout': go.Layout(
-                                    yaxis={'title': 'L/s', 'gridcolor': '#f0f0f0'},
-                                    plot_bgcolor='white',
-                                    paper_bgcolor='white',
-                                    margin=dict(l=50, r=20, t=20, b=50),
-                                    showlegend=False
-                                )
-                            },
-                            config={'displayModeBar': False}
-                        )
-                    ])
-                ], className="shadow-sm mb-4")
-            ], md=4),
+        #     dbc.Col([
+        #         dbc.Card([
+        #             dbc.CardHeader([
+        #                 html.H5([
+        #                     html.I(className="fas fa-chart-pie me-2"),
+        #                     "Phân Tích Dữ Liệu"
+        #                 ], className="mb-0")
+        #             ]),
+        #             dbc.CardBody([
+        #                 dcc.Graph(
+        #                     id='distribution-chart',
+        #                     figure={
+        #                         'data': [
+        #                             go.Box(
+        #                                 y=df['flow_rate'],
+        #                                 name='Lưu lượng',
+        #                                 marker=dict(color='#1f77b4'),
+        #                                 boxmean='sd'
+        #                             )
+        #                         ],
+        #                         'layout': go.Layout(
+        #                             yaxis={'title': 'L/s', 'gridcolor': '#f0f0f0'},
+        #                             plot_bgcolor='white',
+        #                             paper_bgcolor='white',
+        #                             margin=dict(l=50, r=20, t=20, b=50),
+        #                             showlegend=False
+        #                         )
+        #                     },
+        #                     config={'displayModeBar': False}
+        #                 )
+        #             ])
+        #         ], className="shadow-sm mb-4")
+        #     ], md=4),
         ]),
         
         # Multi-parameter chart
@@ -178,37 +252,47 @@ layout = html.Div([
                             figure={
                                 'data': [
                                     go.Scatter(
-                                        x=df['date'][-30:],
-                                        y=df['flow_rate'][-30:],
+                                        x=df['date'].iloc[-30:] if not df.empty else [],
+                                        y=df['flow_rate'].iloc[-30:] if not df.empty else [],
                                         mode='lines+markers',
                                         name='Lưu lượng (L/s)',
                                         line=dict(color='#1f77b4', width=2),
                                         marker=dict(size=6)
                                     ),
                                     go.Scatter(
-                                        x=df['date'][-30:],
-                                        y=df['pressure'][-30:] * 2,
+                                        x=df['date'].iloc[-30:] if not df.empty else [],
+                                        y=df['soil_moisture'].iloc[-30:] if not df.empty else [],
                                         mode='lines+markers',
-                                        name='Áp suất (Bar x2)',
+                                        name='Độ ẩm đất (%)',
                                         line=dict(color='#2ca02c', width=2),
                                         marker=dict(size=6),
                                         yaxis='y2'
                                     ),
                                     go.Scatter(
-                                        x=df['date'][-30:],
-                                        y=df['temperature'][-30:] * 5,
+                                        x=df['date'].iloc[-30:] if not df.empty else [],
+                                        y=df['temperature'].iloc[-30:] if not df.empty else [],
                                         mode='lines+markers',
-                                        name='Nhiệt độ (°C x5)',
+                                        name='Nhiệt độ (°C)',
                                         line=dict(color='#ff7f0e', width=2),
                                         marker=dict(size=6),
                                         yaxis='y3'
+                                    ),
+                                    go.Scatter(
+                                        x=df['date'].iloc[-30:] if not df.empty else [],
+                                        y=df['humidity'].iloc[-30:] if not df.empty else [],
+                                        mode='lines+markers',
+                                        name='Độ ẩm không khí (%)',
+                                        line=dict(color='#9467bd', width=2),
+                                        marker=dict(size=6),
+                                        yaxis='y4'
                                     )
                                 ],
                                 'layout': go.Layout(
-                                    xaxis={'title': 'Ngày (30 ngày gần nhất)', 'gridcolor': '#f0f0f0'},
-                                    yaxis={'title': 'Lưu lượng', 'gridcolor': '#f0f0f0'},
-                                    yaxis2={'title': 'Áp suất', 'overlaying': 'y', 'side': 'right'},
-                                    yaxis3={'title': 'Nhiệt độ', 'overlaying': 'y', 'side': 'right', 'position': 0.95},
+                                    xaxis={'title': 'Thời gian (30 mẫu gần nhất)', 'gridcolor': '#f0f0f0'},
+                                    yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
+                                    yaxis2={'title': 'Độ ẩm đất (%)', 'overlaying': 'y', 'side': 'right'},
+                                    yaxis3={'title': 'Nhiệt độ (°C)', 'overlaying': 'y', 'side': 'right', 'position': 0.95},
+                                    yaxis4={'title': 'Độ ẩm KK (%)', 'overlaying': 'y', 'side': 'right', 'position': 0.85},
                                     hovermode='x unified',
                                     plot_bgcolor='white',
                                     paper_bgcolor='white',
@@ -222,7 +306,7 @@ layout = html.Div([
                                     )
                                 )
                             },
-                            config={'displayModeBar': False}
+                            config={'displayModeBar': True, 'scrollZoom': True}
                         )
                     ])
                 ], className="shadow-sm mb-4")
@@ -272,13 +356,15 @@ layout = html.Div([
         
     ], fluid=True, className="px-4"),
     
+    # Add interval component for periodic updates
+    dcc.Interval(
+        id='interval-component',
+        interval=60*1000,  # Update every 60 seconds
+        n_intervals=0
+    )
 ], className="page-container")
 
 
-@callback(
-    Output('weather-store', 'data'),
-    Input('url', 'hash')
-)
 def fetch_weather_from_hash(hash_value):
     if not hash_value:
         raise PreventUpdate
@@ -305,8 +391,6 @@ def fetch_weather_from_hash(hash_value):
         resp = requests.get(url, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
-        # print(data)
-        
 
         try:
             geocode_url = 'https://geocoding-api.open-meteo.com/v1/reverse'
@@ -328,10 +412,14 @@ def fetch_weather_from_hash(hash_value):
         return data
     except Exception as e:
         return {'error': str(e)}
-
-
 @callback(
     [
+        Output('flow-rate-chart', 'figure'),
+        Output('multi-param-chart', 'figure'),
+        Output('flow-rate', 'children'),
+        Output('soil-moisture', 'children'),
+        Output('temperature', 'children'),
+        Output('humidity', 'children'),
         Output('weather-location', 'children'),
         Output('weather-localtime', 'children'),
         Output('weather-temp', 'children'),
@@ -347,12 +435,132 @@ def fetch_weather_from_hash(hash_value):
         Output('weather-raw', 'children')
     ],
     [
-        Input('weather-store', 'data'),
+        Input('interval-component', 'n_intervals'),
+        Input('url', 'hash'),
         Input('show-forecast', 'n_clicks'),
-        Input('forecast-length', 'value')
+        Input('forecast-length', 'value'),
+        Input('session-store', 'modified_timestamp')
     ],
-    [State('weather-store', 'data')]
+    [
+        State('weather-store', 'data'),
+        State('session-store', 'data')
+    ]
 )
+def update_all(n, hash_value, n_clicks, forecast_length, session_modified, stored, session):
+    df = fetch_sensor_data()
+    
+    if df.empty:
+        raise PreventUpdate
+    
+    # Update flow rate chart
+    flow_rate_figure = {
+        'data': [
+            go.Scatter(
+                x=df['date'],
+                y=df['flow_rate'],
+                mode='lines',
+                name='Lưu lượng',
+                line=dict(color='#1f77b4', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(31, 119, 180, 0.2)'
+            )
+        ],
+        'layout': go.Layout(
+            xaxis={
+                'title': 'Thời gian',
+                'gridcolor': '#f0f0f0',
+                'rangeslider': {'visible': True}
+            },
+            yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
+            hovermode='x unified',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=50, r=20, t=20, b=50)
+        )
+    }
+    
+    multi_param_figure = {
+        'data': [
+            go.Scatter(
+                x=df['date'].iloc[-30:],
+                y=df['flow_rate'].iloc[-30:],
+                mode='lines+markers',
+                name='Lưu lượng (L/s)',
+                line=dict(color='#1f77b4', width=2),
+                marker=dict(size=6)
+            ),
+            go.Scatter(
+                x=df['date'].iloc[-30:],
+                y=df['soil_moisture'].iloc[-30:],
+                mode='lines+markers',
+                name='Độ ẩm đất (%)',
+                line=dict(color='#2ca02c', width=2),
+                marker=dict(size=6),
+                yaxis='y2'
+            ),
+            go.Scatter(
+                x=df['date'].iloc[-30:],
+                y=df['temperature'].iloc[-30:],
+                mode='lines+markers',
+                name='Nhiệt độ (°C)',
+                line=dict(color='#ff7f0e', width=2),
+                marker=dict(size=6),
+                yaxis='y3'
+            ),
+            go.Scatter(
+                x=df['date'].iloc[-30:],
+                y=df['humidity'].iloc[-30:],
+                mode='lines+markers',
+                name='Độ ẩm không khí (%)',
+                line=dict(color='#9467bd', width=2),
+                marker=dict(size=6),
+                yaxis='y4'
+            )
+        ],
+        'layout': go.Layout(
+            xaxis={'title': 'Thời gian (30 mẫu gần nhất)', 'gridcolor': '#f0f0f0'},
+            yaxis={'title': 'Lưu lượng (L/s)', 'gridcolor': '#f0f0f0'},
+            yaxis2={'title': 'Độ ẩm đất (%)', 'overlaying': 'y', 'side': 'right'},
+            yaxis3={'title': 'Nhiệt độ (°C)', 'overlaying': 'y', 'side': 'right', 'position': 0.95},
+            yaxis4={'title': 'Độ ẩm KK (%)', 'overlaying': 'y', 'side': 'right', 'position': 0.85},
+            hovermode='x unified',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=50, r=100, t=20, b=50),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+    }
+    
+    flow_rate = f"{df['flow_rate'].iloc[-1]:.1f} L/s" if not df.empty else "N/A"
+    soil_moisture = f"{df['soil_moisture'].iloc[-1]:.1f}%" if not df.empty else "N/A"
+    temperature = f"{df['temperature'].iloc[-1]:.1f}°C" if not df.empty else "N/A"
+    humidity = f"{df['humidity'].iloc[-1]:.1f}%" if not df.empty else "N/A"
+    
+    try:
+        if hash_value:
+            store_data = fetch_weather_from_hash(hash_value)
+        else:
+            store_data = stored
+        weather_data = render_weather(store_data, n_clicks, forecast_length, stored)
+    except:
+        weather_data = render_weather(None, n_clicks, forecast_length, stored)
+    
+    return (
+        flow_rate_figure,  # flow-rate-chart
+        multi_param_figure,  # multi-param-chart
+        flow_rate,  # flow-rate
+        soil_moisture,  # soil-moisture
+        temperature,  # temperature
+        humidity,  # humidity
+        *weather_data  # weather components
+    )
+
 def render_weather(store_data, n_clicks, forecast_length, stored):
     default_container_class = 'text-start'
 
