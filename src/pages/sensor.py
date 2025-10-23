@@ -17,9 +17,10 @@ def _sensor_row_row_item(s):
         html.Td(s.get('ten_loai_cam_bien') or ''),
         html.Td(s.get('ngay_lap_dat')),
         html.Td(dbc.ButtonGroup([
-            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-edit', size='sm'),
-            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-delete', size='sm')
-        ]))
+            dbc.Button('Sửa', id={'type': 'edit-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-outline-edit', size='sm'),
+            html.Div(style={'width':'8px'}),
+            dbc.Button('Xóa', id={'type': 'delete-sensor', 'index': s.get('ma_cam_bien')}, className='btn-action btn-outline-delete', size='sm')
+        ]), style={'text-align': 'center'})
     ])
 
 
@@ -77,7 +78,7 @@ layout = html.Div([
         ], id='confirm-delete-modal', is_open=False, centered=True)
 
     ], fluid=True)
-], className='page-container', style={"paddingTop": "20px"})
+], className='page-container', style={"paddingTop": "5px"})
 
 
 @callback(
@@ -327,7 +328,6 @@ def render_table(data, search):
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
 
-    # wrap in scrollable container so pagination/footer stays visible
     return html.Div(className='table-scroll', children=[table])
 
 
@@ -345,9 +345,7 @@ def open_modal(n_add, edit_clicks, n_cancel, store):
     trig_value = ctx.triggered[0].get('value')
     if not trig_value:
         raise PreventUpdate
-    # add
     if btn == 'open-add-sensor':
-        # when adding, set save button label to 'Thêm'
         return True, 'Thêm cảm biến', None, '', '', 1, str(datetime.date.today()), None, 'Thêm'
 
     if 'edit-sensor' in btn:
@@ -365,7 +363,6 @@ def open_modal(n_add, edit_clicks, n_cancel, store):
         if not s:
             raise PreventUpdate
         sel_loai = s.get('ma_loai_cam_bien') if s.get('ma_loai_cam_bien') is not None else s.get('loai')
-    # when editing, keep save button label as 'Lưu'
     return True, 'Sửa cảm biến', idx, s.get('ten_cam_bien'), s.get('mo_ta'), s.get('ma_may_bom'), s.get('ngay_lap_dat'), sel_loai, 'Lưu'
 
     return False, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
@@ -412,7 +409,6 @@ def save_or_delete(n_save, edit_id, ten, mo_ta, ma_may_bom, ngay_lap_dat, loai, 
             create_sensor(payload, token=token)
 
         data = list_sensors(limit=20, offset=0, token=token)
-        # close modal after save
         return data, False
 
     raise PreventUpdate
@@ -456,7 +452,6 @@ def perform_delete(n_confirm, delete_id, session_data):
         token = session_data.get('token')
     success, msg = delete_sensor(delete_id, token=token)
     data = list_sensors(limit=20, offset=0, token=token)
-    # ensure any sensor modal is closed as well
     return data, False, False
 
 

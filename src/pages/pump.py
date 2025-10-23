@@ -15,10 +15,10 @@ def _pump_row_item(p):
         html.Td(p.get('mo_ta')),
         html.Td(p.get('ma_iot_lk') or ''),
         html.Td(p.get('che_do')),
-        html.Td(str(p.get('trang_thai'))),
+    html.Td('Bật' if p.get('trang_thai') else 'Tắt'),
         html.Td(dbc.ButtonGroup([
-            dbc.Button(html.I(className='fas fa-edit'), id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-edit', size='sm'),
-            dbc.Button(html.I(className='fas fa-trash'), id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-delete', size='sm')
+            dbc.Button('Sửa', id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-edit', size='sm'),
+            dbc.Button('Xóa', id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-delete', size='sm')
         ]))
     ])
 
@@ -74,7 +74,7 @@ layout = html.Div([
         ], id='confirm-delete-pump-modal', is_open=False, centered=True)
 
     ], fluid=True)
-], className='page-container', style={"paddingTop": "20px"})
+], className='page-container', style={"paddingTop": "5px"})
 
 
 @callback(
@@ -150,7 +150,6 @@ def render_pump_table(data, search):
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
 
-    # keep table scrollable so pagination/footer remains fixed
     return html.Div(className='table-scroll', children=[table])
 
 

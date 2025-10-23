@@ -11,14 +11,15 @@ import datetime
 import dash
 
 
-def _data_row_item(d):
+def _data_row_item(d, index=None):
     return html.Tr([
+        html.Td(index if index is not None else ''),
         html.Td(d.get('ngay')),
         html.Td(d.get('luu_luong_nuoc')),
         html.Td(d.get('do_am_dat')),
         html.Td(d.get('nhiet_do')),
         html.Td(d.get('do_am')),
-        html.Td(str(d.get('mua'))),
+        html.Td('Có mưa' if d.get('mua') else 'Không mưa'),
         html.Td(d.get('so_xung')),
         html.Td(d.get('tong_the_tich')),
         html.Td(d.get('ghi_chu') or '')
@@ -28,7 +29,7 @@ def _data_row_item(d):
 layout = html.Div([
     create_navbar(is_authenticated=True),
     dbc.Container([
-    dbc.Row([dbc.Col(TopBar('Dữ liệu cảm biến', search_id=None, date_id='data-filter-date', add_button={'id':'open-add-data','label':'Thêm dữ liệu'}, unit_id='data-filter-pump', show_add=False, date_last=True, extra_right=[dcc.Dropdown(id='data-limit-dropdown', options=[{'label':'20','value':20},{'label':'50','value':50},{'label':'200','value':200}], value=20, clearable=False, className='topbar-limit me-2')]))], className='my-3'),
+    dbc.Row([dbc.Col(TopBar('Dữ liệu cảm biến', search_id=None, date_id='data-filter-date', add_button={'id':'open-add-data','label':'Thêm dữ liệu'}, unit_id='data-filter-pump', extra_left=[dcc.Dropdown(id='data-limit-dropdown', options=[{'label':'20','value':20},{'label':'50','value':50},{'label':'200','value':200}], value=20, clearable=False, className='topbar-limit me-2')], show_add=False, date_last=True))], className='my-3'),
 
         dbc.Row([
             dbc.Col(dcc.Loading(html.Div(id='data-table-container')))
@@ -40,7 +41,6 @@ layout = html.Div([
     dcc.Store(id='data-store'),
     dcc.Store(id='data-edit-id'),
     dcc.Store(id='data-page-store', data={'page': 1, 'limit': 20}),
-    # store to hold pagination meta (max pages). load_data will write here.
     dcc.Store(id='data-pagination-store', data={'max': 1}),
 
         dbc.Modal([
@@ -75,7 +75,7 @@ layout = html.Div([
         ], id='data-modal', is_open=False, centered=True)
 
     ], fluid=True)
-], className='page-container', style={"paddingTop": "20px"})
+], className='page-container', style={"paddingTop": "5px"})
 
 
 @callback(
@@ -84,19 +84,15 @@ layout = html.Div([
     State('session-store', 'data')
 )
 def load_pumps_options(pathname, session_data):
-    # accept both underscore and dash routes and the Vietnamese path
     if pathname not in ('/sensor-data', '/sensor_data', '/du-lieu-cam-bien'):
         raise PreventUpdate
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
-    # load pumps as the units to filter by
     data = list_pumps(limit=1000, offset=0, token=token)
     opts = []
-    # add 'Tất cả' option (use empty string instead of None to avoid prop type issues)
     opts.append({'label': 'Tất cả', 'value': ''})
     for it in (data.get('data') or []):
-        # label = ten_may_bom, value = ma_may_bom
         opts.append({'label': it.get('ten_may_bom') or str(it.get('ma_may_bom')), 'value': it.get('ma_may_bom')})
     return opts
 
@@ -125,8 +121,10 @@ def navigate_date(prev_clicks, next_clicks, blur, current_value):
         return str(new)
     if prop == 'data-filter-date-next':
         new = cur + datetime.timedelta(days=1)
+        today = datetime.date.today()
+        if new > today:
+            return str(current_value or str(today))
         return str(new)
-    # if blur or manual change, keep the value
     return current_value
 
 
@@ -139,7 +137,23 @@ def navigate_date(prev_clicks, next_clicks, blur, current_value):
 def ensure_default_date_on_page(pathname):
     if pathname not in ('/sensor-data', '/sensor_data', '/du-lieu-cam-bien'):
         raise PreventUpdate
-    return str(datetime.date.today())
+    today = datetime.date.today()
+    return str(today)
+
+
+
+@callback(
+    Output('data-filter-date-next', 'disabled'),
+    Input('data-filter-date', 'value')
+)
+def disable_next_if_today(current_value):
+    try:
+        if not current_value:
+            return True
+        cur = datetime.date.fromisoformat(str(current_value))
+        return cur >= datetime.date.today()
+    except Exception:
+        return True
 
 
 @callback(
@@ -156,12 +170,10 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
     if page_store and isinstance(page_store, dict):
         page = int(page_store.get('page', 1))
         limit = int(page_store.get('limit', 20))
-    # default
     data = {'data': []}
     max_pages = 1
     total_text = 'Tổng: 0'
 
-    # If a date filter is provided, use that. Otherwise, fetch by pump (ma_may_bom may be None meaning 'Tất cả').
     if ngay:
         offset = (page - 1) * limit
         try:
@@ -171,7 +183,6 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
                 max_pages = max(1, (total + limit - 1) // limit)
             else:
                 total = len(data.get('data') or [])
-            # format like: "1-20 trong tổng số 170"
             if total > 0:
                 start = (page - 1) * limit + 1
                 end = min(page * limit, total)
@@ -184,10 +195,8 @@ def load_data(ma_may_bom, ngay, page_store, session_data):
             total_text = '0 trong tổng số 0'
         return data, {'max': max_pages}, total_text
 
-    # fetch by pump (ma_may_bom can be None for 'Tất cả')
     offset = (page - 1) * limit
     try:
-        # if ma_may_bom is not None and is integer-like, pass as int; else pass None
         pump_param = int(ma_may_bom) if (ma_may_bom is not None and str(ma_may_bom).isdigit()) else None
         data = get_data_by_pump(pump_param, limit=limit, offset=offset, token=token)
         if isinstance(data, dict) and data.get('total') is not None:
@@ -222,16 +231,15 @@ def set_limit(limit_value, current):
         data['limit'] = int(limit_value)
     except Exception:
         data['limit'] = 20
-    # reset to first page when limit changes
     data['page'] = 1
     return data
 
 
 @callback(
     Output('data-table-container', 'children'),
-    Input('data-store', 'data')
+    [Input('data-store', 'data'), Input('data-page-store', 'data')]
 )
-def render_table(data):
+def render_table(data, page_store):
     if not data or 'data' not in data or not data.get('data'):
         return html.Div(className='empty-state', children=[
             html.Div(className='empty-icon', children=[
@@ -240,18 +248,27 @@ def render_table(data):
             html.Div('Không có dữ liệu', className='empty-text')
         ])
     rows = []
-    for d in data.get('data', []):
-        rows.append(_data_row_item(d))
+    items = data.get('data', []) or []
+    start_idx = 0
+    try:
+        if page_store and isinstance(page_store, dict):
+            page = int(page_store.get('page', 1) or 1)
+            limit = int(page_store.get('limit', 20) or 20)
+            start_idx = (page - 1) * limit
+    except Exception:
+        start_idx = 0
+
+    for idx, d in enumerate(items, start= start_idx + 1):
+        rows.append(_data_row_item(d, index=idx))
 
     table = dbc.Table([
-        html.Thead(html.Tr([html.Th('Ngày'), html.Th('Lưu lượng'), html.Th('Độ ẩm đất'), html.Th('Nhiệt độ'), html.Th('Độ ẩm'), html.Th('Mưa'), html.Th('Số xung'), html.Th('Tổng thể tích'), html.Th('Ghi chú')])),
+        html.Thead(html.Tr([html.Th('STT'), html.Th('Ngày'), html.Th('Lưu lượng'), html.Th('Độ ẩm đất'), html.Th('Nhiệt độ'), html.Th('Độ ẩm'), html.Th('Mưa'), html.Th('Số xung'), html.Th('Tổng thể tích'), html.Th('Ghi chú')])),
         html.Tbody(rows)
     ], bordered=True, hover=True, responsive=True)
     return table
 
 
 def _build_pagination(current, max_pages, window=3):
-    # build a compact pagination: show first, last, and window around current
     items = []
     # previous
     prev_disabled = (current <= 1)
@@ -326,7 +343,6 @@ def handle_pagination_click(page_clicks, prev_clicks, next_clicks, current, pagi
     except Exception:
         raise PreventUpdate
     data = current or {'page': 1, 'limit': 20}
-    # determine max pages from pagination_meta to clamp
     max_pages = 1
     try:
         if pagination_meta and isinstance(pagination_meta, dict):
@@ -348,7 +364,6 @@ def handle_pagination_click(page_clicks, prev_clicks, next_clicks, current, pagi
         data['page'] = max(1, int(data.get('page', 1)) - 1)
         return data
     if t == 'data-page-next':
-        # clamp next to max_pages
         nextp = int(data.get('page', 1)) + 1
         if nextp > max_pages:
             nextp = max_pages
@@ -396,7 +411,6 @@ def save_data(n_save, ngay, luu_luong, do_am_dat, nhiet_do, do_am, mua, so_xung,
         'ghi_chu': ghi_chu or ''
     }
     success, msg = put_sensor_data(payload, token=token)
-    # reload store by date
     data = get_data_by_date(ngay, token=token)
     return data, False
 

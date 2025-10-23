@@ -169,8 +169,71 @@ body {
 .table .btn-action { padding: 0.35rem 0.5rem; border-radius: 8px; }
 .table .btn-action .fa { margin: 0; }
 
-.btn, .btn-action { transition: transform .12s ease, filter .12s ease; }
-.btn:hover, .btn-action:hover { transform: translateY(-2px); }
+.btn, .btn-action { transition: color .12s ease, border-color .12s ease, background .12s ease; }
+
+.table thead th, .table thead td { text-align: left; vertical-align: middle; }
+
+/* Table action buttons: rectangular outline buttons that fill on hover */
+.table .btn-action {
+    padding: 0.28rem 0.6rem;
+    border-radius: 0; /* no rounded corners */
+    background: transparent;
+    border: 1px solid rgba(15,23,42,0.08);
+    color: #475569; /* muted slate */
+    box-shadow: none;
+    transform: none;
+    min-width: 68px;
+    text-align: center;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+/* space between action buttons */
+.table .btn-action + .btn-action { margin-left: 10px; }
+
+/* hover: fill with green or red and white text */
+.table .btn-action.btn-outline-edit:hover {
+    background: var(--success-color);
+    color: #fff;
+    border-color: var(--success-color);
+}
+.table .btn-action.btn-outline-delete:hover {
+    background: var(--danger-color);
+    color: #fff;
+    border-color: var(--danger-color);
+}
+
+/* default outline colors: green text+border for edit, red text+border for delete */
+.table .btn-action.btn-outline-edit {
+    color: var(--success-color);
+    border-color: var(--success-color);
+    background: transparent;
+}
+.table .btn-action.btn-outline-delete {
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+    background: transparent;
+}
+
+/* ensure no lift effect on these buttons */
+.table .btn-action:hover { transform: none; }
+
+.topbar-date-btn,
+.topbar-date {
+    transition: none !important;
+}
+.topbar-date-btn:hover {
+    transform: none !important;
+}
+
+.topbar-date-btn[disabled], .topbar-date-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.topbar-date:disabled, .topbar-date[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
 .hero-section {
     background: var(--card-bg);
@@ -548,7 +611,7 @@ footer {
     .topbar-right { justify-content: flex-end; }
 }
 
-    .topbar { border-bottom: 1px solid #eef2f7; padding-bottom: 0.5rem; }
+    .topbar { border-bottom: 1px solid #eef2f7; padding-bottom: 1rem; }
 
 .empty-state {
     display: flex;

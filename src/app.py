@@ -3,13 +3,10 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import session
 import os
-
-# Import pages
 from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation
 from components.navbar import create_navbar
 from components.footer import create_footer
 
-# Initialize app with Bootstrap theme
 app = dash.Dash(
     __name__,
     suppress_callback_exceptions=True,
@@ -32,7 +29,7 @@ app.layout = html.Div([
     dcc.Store(id='session-store', storage_type='session'),
     dcc.Interval(id='token-check-interval', interval=30*1000, n_intervals=0),
     html.Div(id='page-content'),
-    create_footer()
+    html.Div(id='app-footer', children=create_footer())
 ])
 
 @app.callback(
@@ -74,19 +71,29 @@ def display_page(pathname, session_data):
         else:
             page = login.layout
     elif pathname == '/documentation':
-        # Documentation is a read-only page; allow access regardless of auth
         page = documentation.layout
     else:
         page = home.layout
 
     try:
         if is_authenticated and hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
-            # Pass current pathname so the navbar can mark the correct link active
             page.children[0] = create_navbar(is_authenticated, current_path=pathname)
     except Exception:
         pass
 
+    if pathname in ['/login', '/register']:
+        return page
+
     return page
+
+@app.callback(
+    Output('app-footer', 'style'),
+    Input('url', 'pathname')
+)
+def toggle_footer(pathname):
+    if pathname in ['/login', '/register']:
+        return {'display': 'none'}
+    return {'display': 'block'}
 
 @app.callback(
     [Output('session-store', 'data', allow_duplicate=True), Output('url', 'pathname', allow_duplicate=True)],
