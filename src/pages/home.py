@@ -333,8 +333,8 @@ layout = html.Div([
                 dbc.Card([
                     dbc.CardBody([
                         html.I(className="fas fa-brain fa-3x text-primary mb-3"),
-                        html.H4("AI Dự Đoán", className="mb-3"),
-                        html.P("Sử dụng machine learning để dự đoán lưu lượng nước chính xác",
+                        html.H4("Mô Hình Máy Học Dự Đoán", className="mb-3"),
+                        html.P("Sử dụng máy học để dự đoán lưu lượng nước chính xác",
                                 className="text-muted")
                     ], className="text-center")
                 ], className="shadow-sm feature-card h-100")
@@ -344,9 +344,9 @@ layout = html.Div([
                 dbc.Card([
                     dbc.CardBody([
                         html.I(className="fas fa-clock fa-3x text-success mb-3"),
-                        html.H4("Realtime", className="mb-3"),
+                        html.H4("Dữ liệu thời gian thực", className="mb-3"),
                         html.P("Giám sát dữ liệu theo thời gian thực với độ trễ tối thiểu",
-                              className="text-muted")
+                            className="text-muted")
                     ], className="text-center")
                 ], className="shadow-sm feature-card h-100")
             ], md=4, className="mb-4"),
