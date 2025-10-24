@@ -711,8 +711,8 @@ def render_weather(store_data, stored):
         forecast_nodes.append(html.Div([
             html.Div(dd, className='small text-muted'),
             html.Div(f['label'], className='small'),
-            html.Div(f"{f.get('hi','—')}° / {f.get('lo','—')}°", className='fw-bold'),
-            html.Div((f.get('precip') or 0), className='small text-muted')
+            html.Div(f"{f.get('hi','—')}°C / {f.get('lo','—')}°C", className='fw-bold'),
+            html.Div(f"{(f.get('precip') or 0)} mm", className='small text-muted')
         ], className='day'))
 
     updated = f"Cập nhật: {localtime_str}"

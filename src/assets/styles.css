@@ -563,7 +563,7 @@ footer {
 
 .weather-forecast .day .small { 
     color: #64b5f6;
-    font-size: 0.68rem;
+    font-size: 12px;
     font-weight: 500;
 }
 

@@ -64,7 +64,7 @@ def create_weather_widget():
                                 'boxShadow': '0 2px 8px rgba(255, 214, 0, 0.1)'
                             })
                         ], style={'padding': '0 0.6rem', 'textAlign': 'center'})
-                    ], md=3, sm=12),
+                    ], md=5, sm=12),
 
                     dbc.Col([
                         html.Div([
@@ -92,7 +92,7 @@ def create_weather_widget():
                                 html.Span(id='stat-pressure', style={'fontSize': '0.75rem', 'fontWeight': '700', 'color': '#0358a3', 'marginLeft': 'auto'})
                             ], style={'display': 'flex', 'alignItems': 'center', 'padding': '0.4rem', 'background': 'rgba(97, 97, 97, 0.05)', 'borderRadius': '6px'})
                         ], style={'fontSize': '0.75rem'})
-                    ], md=6, sm=12, style={'paddingLeft': '0.8rem'})
+                    ], md=4, sm=12, style={'paddingLeft': '0.8rem'})
                 ], className='g-0', style={'marginBottom': '0.8rem'}),
 
                 html.Div([
@@ -153,7 +153,7 @@ def create_weather_widget():
 
     return html.Div([
         dcc.Store(id='weather-store'),
-        html.Div(id='weather-container', children=[card], className='weather-widget-container')
+        html.Div(id='weather-container', children=[card], className='weather-widget-container', style={'margin-top': '10px'})
     ], className='weather-widget')
 
 
