@@ -399,6 +399,7 @@ def fetch_weather_from_hash(hash_value):
         resp = requests.get(url, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
+        # print(data)
 
         try:
             geocode_url = 'https://geocoding-api.open-meteo.com/v1/reverse'
@@ -432,11 +433,11 @@ def fetch_weather_from_hash(hash_value):
         Output('weather-localtime', 'children'),
         Output('weather-temp', 'children'),
         Output('weather-desc', 'children'),
+        Output('weather-sunrise', 'children'),
+        Output('weather-sunset', 'children'),
         Output('weather-icon', 'className'),
-        Output('stat-temp', 'children'),
         Output('stat-humidity', 'children'),
         Output('stat-pressure', 'children'),
-        Output('stat-precip', 'children'),
         Output('weather-forecast', 'children'),
         Output('weather-updated', 'children'),
         Output('weather-container', 'className'),
@@ -446,8 +447,6 @@ def fetch_weather_from_hash(hash_value):
         Input('interval-component', 'n_intervals'),
         Input('url', 'pathname'),
         Input('url', 'hash'),
-        Input('show-forecast', 'n_clicks'),
-        Input('forecast-length', 'value'),
         Input('session-store', 'modified_timestamp')
     ],
     [
@@ -455,7 +454,7 @@ def fetch_weather_from_hash(hash_value):
         State('session-store', 'data')
     ]
 )
-def update_all(n, pathname, hash_value, n_clicks, forecast_length, session_modified, stored, session):
+def update_all(n, pathname, hash_value, session_modified, stored, session):
     if pathname not in ('', '/', None):
         raise PreventUpdate
     df = fetch_sensor_data()
@@ -557,9 +556,9 @@ def update_all(n, pathname, hash_value, n_clicks, forecast_length, session_modif
             store_data = fetch_weather_from_hash(hash_value)
         else:
             store_data = stored
-        weather_data = render_weather(store_data, n_clicks, forecast_length, stored)
+        weather_data = render_weather(store_data, stored)
     except:
-        weather_data = render_weather(None, n_clicks, forecast_length, stored)
+        weather_data = render_weather(None, stored)
     
     return (
         flow_rate_figure,  # flow-rate-chart
@@ -571,7 +570,7 @@ def update_all(n, pathname, hash_value, n_clicks, forecast_length, session_modif
         *weather_data  # weather components
     )
 
-def render_weather(store_data, n_clicks, forecast_length, stored):
+def render_weather(store_data, stored):
     default_container_class = 'text-start'
 
     def empty_response(msg=''):
@@ -580,12 +579,15 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
             '',                     # weather-localtime
             '—',                    # weather-temp
             msg or 'Vui lòng cho phép truy cập vị trí để xem thời tiết.',  # weather-desc
+            '—',                    # weather-sunrise (rain)
+            '—',                    # weather-sunset (wind)
             'weather-icon',         # weather-icon className
-            '—', '—', '—', '—',     # stat-temp, stat-humidity, stat-pressure, stat-precip
-            [],                     # forecast children
+            '—',                    # stat-humidity
+            '—',                    # stat-pressure
+            [],                     # weather-forecast
             '',                     # weather-updated
-            default_container_class
-            , ''
+            default_container_class,
+            ''
         )
 
     if not store_data:
@@ -620,6 +622,9 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
     except Exception:
         humidity = None
 
+    rain_out = f"{precip if precip is not None else '—'} mm" if precip is not None else "—"
+    wind_out = f"{wind if wind is not None else '—'} km/h" if wind is not None else "—"
+
     wc_map = {
         0: 'Quang đãng',
         1: 'Ít mây',
@@ -642,16 +647,15 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
         tmax = daily.get('temperature_2m_max', [])
         tmin = daily.get('temperature_2m_min', [])
         psum = daily.get('precipitation_sum', [])
-        if n_clicks and n_clicks > 0:
-            length = int(forecast_length or 3)
-            for i in range(min(length, len(dates))):
-                d = dates[i]
-                wc = wcodes[i] if i < len(wcodes) else None
-                hi = tmax[i] if i < len(tmax) else None
-                lo = tmin[i] if i < len(tmin) else None
-                pd = psum[i] if i < len(psum) else None
-                label = wc_map.get(wc, 'N/A')
-                forecast_items.append({'date': d, 'label': label, 'hi': hi, 'lo': lo, 'precip': pd, 'code': wc})
+        length = min(7, len(dates))
+        for i in range(length):
+            d = dates[i]
+            wc = wcodes[i] if i < len(wcodes) else None
+            hi = tmax[i] if i < len(tmax) else None
+            lo = tmin[i] if i < len(tmin) else None
+            pd = psum[i] if i < len(psum) else None
+            label = wc_map.get(wc, 'N/A')
+            forecast_items.append({'date': d, 'label': label, 'hi': hi, 'lo': lo, 'precip': pd, 'code': wc})
     except Exception:
         forecast_items = []
 
@@ -679,6 +683,19 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
     except Exception:
         localtime_str = time
 
+    try:
+        wind_dir_deg = cw.get('winddirection') if isinstance(cw, dict) else None
+        if wind_dir_deg is None:
+            wind_dir_deg = None
+        wind_dir_label = ''
+        if wind_dir_deg is not None:
+            deg = int(wind_dir_deg) % 360
+            dirs = ['Bắc','Bắc-Đông','Đông','Nam-Đông','Nam','Nam-Tây','Tây','Bắc-Tây']
+            idx = int((deg + 22.5) // 45) % 8
+            wind_dir_label = dirs[idx]
+    except Exception:
+        wind_dir_label = ''
+
     details = html.Div([
         html.H3(f"{temp}°C", className='mb-1'),
         html.P(f"{desc}", className='text-muted mb-1'),
@@ -703,13 +720,12 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
     location_out = place
     localtime_out = localtime_str
     temp_out = f"{temp}°C"
+    
     desc_out = desc
     icon_class_out = f'weather-icon {icon_class}'
 
-    stat_temp_out = f"{temp} °C"
     stat_humidity_out = f"{humidity if humidity is not None else '—'} %"
     stat_pressure_out = f"{pressure if pressure is not None else '—'} hPa"
-    stat_precip_out = f"{precip if precip is not None else 0}"
 
     forecast_out = forecast_nodes
 
@@ -722,11 +738,11 @@ def render_weather(store_data, n_clicks, forecast_length, stored):
         localtime_out,
         temp_out,
         desc_out,
+        rain_out,
+        wind_out,
         icon_class_out,
-        stat_temp_out,
         stat_humidity_out,
         stat_pressure_out,
-        stat_precip_out,
         forecast_out,
         updated_out,
         container_class,

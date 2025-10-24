@@ -3,12 +3,6 @@ from dash import html, dcc
 
 
 def create_navbar(is_authenticated=False, current_path: str = None):
-    """Create the navbar. If `current_path` is provided, the matching NavLink will be marked active.
-
-    Args:
-        is_authenticated: whether the user is logged in (controls which links are shown)
-        current_path: the current pathname (e.g. '/account'). If None, no link will be pre-active.
-    """
     def is_active(href: str) -> bool:
         if not current_path:
             return False
