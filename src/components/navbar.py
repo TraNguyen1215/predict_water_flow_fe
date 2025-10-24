@@ -17,6 +17,7 @@ def create_navbar(is_authenticated=False, current_path: str = None):
             dbc.NavItem(dbc.NavLink("Cảm biến", href="/sensor", className="nav-link-custom", active=is_active('/sensor'))),
             dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom", active=is_active('/pump'))),
             dbc.NavItem(dbc.NavLink("Dữ liệu cảm biến", href="/sensor_data", className="nav-link-custom", active=is_active('/sensor_data'))),
+            dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
             dbc.NavItem(dbc.NavLink("Tài liệu", href="/documentation", className="nav-link-custom", active=is_active('/documentation'))),
             dbc.NavItem(dbc.NavLink("Tài khoản", href="/account", className="nav-link-custom", active=is_active('/account'))),
             dbc.NavItem(dbc.NavLink([
