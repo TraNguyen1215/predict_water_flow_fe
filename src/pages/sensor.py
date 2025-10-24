@@ -4,6 +4,7 @@ from dash.exceptions import PreventUpdate
 from components.navbar import create_navbar
 from components.topbar import TopBar
 from api.sensor import list_sensors, create_sensor, update_sensor, delete_sensor, get_sensor, get_sensor_types
+from api.pump import list_pumps
 import dash
 import datetime
 
@@ -39,6 +40,7 @@ layout = html.Div([
     dcc.Store(id='sensor-data-store'),
     dcc.Store(id='sensor-types-store'),
     dcc.Store(id='sensor-selected-type'),
+    dcc.Store(id='sensor-pumps-store'),
     dcc.Store(id='sensor-delete-id'),
     dcc.Store(id='sensor-page-store', data={'page': 1, 'limit': 20}),
     dcc.Store(id='sensor-pagination-store', data={'max': 1}),
@@ -51,8 +53,8 @@ layout = html.Div([
                     dbc.Input(id='sensor-ten', type='text'),
                     dbc.Label('Mô tả', className='mt-2'),
                     dbc.Textarea(id='sensor-mo-ta'),
-                    dbc.Label('Mã máy bơm', className='mt-2'),
-                    dbc.Input(id='sensor-ma-may-bom', type='number', value=1),
+                    dbc.Label('Máy bơm', className='mt-2'),
+                    dcc.Dropdown(id='sensor-ma-may-bom', options=[], value=None, placeholder='Chọn máy bơm', clearable=False),
                     dbc.Label('Ngày lắp đặt', className='mt-2'),
                     dbc.Input(id='sensor-ngay-lap-dat', type='date', value=str(datetime.date.today())),
                     dbc.Label('Loại cảm biến', className='mt-2'),
@@ -295,6 +297,44 @@ def fetch_types_on_modal_open(n_add, edit_clicks, session_data):
 
 
 @callback(
+    Output('sensor-pumps-store', 'data'),
+    [Input('open-add-sensor', 'n_clicks'), Input({'type': 'edit-sensor', 'index': dash.ALL}, 'n_clicks')],
+    State('session-store', 'data'),
+    prevent_initial_call='initial_duplicate'
+)
+def fetch_pumps_on_modal_open(n_add, edit_clicks, session_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    trig_value = ctx.triggered[0].get('value')
+    if not trig_value:
+        raise PreventUpdate
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+    pumps = list_pumps(limit=200, offset=0, token=token)
+    return pumps
+
+
+@callback(
+    Output('sensor-ma-may-bom', 'options'),
+    Input('sensor-pumps-store', 'data')
+)
+def populate_pump_options(pumps_data):
+    if not pumps_data or not isinstance(pumps_data, dict):
+        return []
+    items = pumps_data.get('data') or []
+    opts = []
+    for it in items:
+        ma = it.get('ma_may_bom')
+        ten = it.get('ten_may_bom') or it.get('ten')
+        if ma is None:
+            continue
+        opts.append({'label': str(ten or ma), 'value': ma})
+    return opts
+
+
+@callback(
     Output('sensor-table-container', 'children'),
     [Input('sensor-data-store', 'data'), Input('sensor-search', 'value')]
 )
@@ -345,7 +385,7 @@ def open_modal(n_add, edit_clicks, n_cancel, store):
     if not trig_value:
         raise PreventUpdate
     if btn == 'open-add-sensor':
-        return True, 'Thêm cảm biến', None, '', '', 1, str(datetime.date.today()), None, 'Thêm'
+        return True, 'Thêm cảm biến', None, '', '', None, str(datetime.date.today()), None, 'Thêm'
 
     if 'edit-sensor' in btn:
         try:
