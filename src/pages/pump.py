@@ -189,7 +189,6 @@ def open_pump_modal(n_add, edit_clicks, n_cancel, store):
     trig_value = ctx.triggered[0].get('value')
     if not trig_value:
         raise PreventUpdate
-    # add
     if btn == 'open-add-pump':
         return True, 'Thêm máy bơm', None, '', '', '', 0, False
 
@@ -207,7 +206,6 @@ def open_pump_modal(n_add, edit_clicks, n_cancel, store):
                 break
         if not p:
             raise PreventUpdate
-    # when editing
     return True, 'Sửa máy bơm', idx, p.get('ten_may_bom'), p.get('mo_ta'), p.get('ma_iot_lk'), p.get('che_do'), p.get('trang_thai')
 
 
@@ -299,7 +297,6 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
     prop = trig.get('prop_id', '').split('.')[0]
     trig_value = trig.get('value')
 
-    # ignore falsy triggers
     if not trig_value:
         raise PreventUpdate
 
@@ -308,10 +305,8 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
     is_nav = is_nav_prev or is_nav_next
     is_date_change = (prop == 'pump-memory-date')
 
-    # determine pump id (ma_id)
     ma_id = None
     if is_date_change or is_nav:
-        # use stored ma_id
         if not page_store or not isinstance(page_store, dict):
             raise PreventUpdate
         try:
@@ -332,7 +327,6 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
 
-    # pagination defaults
     page = 1
     limit = 5
     total = 0
@@ -343,10 +337,8 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
     except Exception:
         page, limit = 1, 5
 
-    # if date changed, reset to first page
     if is_date_change:
         page = 1
-    # if opening modal (memory-pump click), reset to first page
     if (not is_nav) and (not is_date_change):
         page = 1
 
@@ -439,7 +431,6 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
 
         rows.append(html.Tr([html.Td(str(stt)), html.Td(bat_str), html.Td(tat_str), html.Td(duration_str), html.Td(ghi_chu)]))
     
-    # determine pump_name from sore data
     pump_name = None
     try:
         for it in (store.get('data') or []):

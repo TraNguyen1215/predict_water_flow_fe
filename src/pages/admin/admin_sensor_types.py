@@ -1,4 +1,4 @@
-from dash import html, dcc, callback, Input, Output, State
+from dash import html, dcc
 import dash_bootstrap_components as dbc
 from components.navbar import create_navbar
 

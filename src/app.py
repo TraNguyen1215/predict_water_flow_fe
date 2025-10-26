@@ -3,7 +3,8 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import session
 import os
-from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation, predict_data, admin, admin_models, admin_sensor_types
+from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation, predict_data
+from pages.admin import *
 from components.navbar import create_navbar
 from components.footer import create_footer
 
@@ -48,7 +49,10 @@ def display_page(pathname, session_data):
         page = register.layout
     elif pathname == '/' or pathname == '':
         if is_authenticated:
-            page = home.layout
+            if is_admin:
+                page = admin.layout
+            else:
+                page = home.layout
         else:
             page = login.layout
     elif pathname == '/account':
@@ -57,22 +61,22 @@ def display_page(pathname, session_data):
         else:
             page = login.layout
     elif pathname == '/sensor':
-        if is_authenticated:
+        if is_authenticated and is_admin == False:
             page = sensor.layout
         else:
             page = login.layout
     elif pathname == '/pump':
-        if is_authenticated:
+        if is_authenticated and is_admin == False:
             page = pump.layout
         else:
             page = login.layout
     elif pathname == '/sensor_data':
-        if is_authenticated:
+        if is_authenticated and is_admin == False:
             page = sensor_data.layout
         else:
             page = login.layout
     elif pathname == '/predict_data':
-        if is_authenticated:
+        if is_authenticated and is_admin == False:
             page = predict_data.layout
         else:
             page = login.layout
@@ -89,7 +93,6 @@ def display_page(pathname, session_data):
         else:
             page = login.layout
     elif pathname == '/admin' or (pathname and pathname.startswith('/admin')):
-        # Admin area (users) - only accessible to authenticated admin users
         if is_authenticated and is_admin:
             page = admin.layout
         else:

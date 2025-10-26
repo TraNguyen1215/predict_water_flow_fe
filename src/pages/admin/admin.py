@@ -3,12 +3,17 @@ import dash_bootstrap_components as dbc
 import dash
 from components.navbar import create_navbar
 from api import user as api_user
+from api import sensor as api_sensor
+from api import pump as api_pump
+from api import sensor_data as api_sensor_data
 
 
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-url', refresh=False),
     dcc.Store(id='admin-users-store', data=[]),
+    dcc.Store(id='admin-dashboard-store', data={}),
+    html.Div(id='admin-dashboard'),
 
     dbc.Container([
         dbc.Row([
@@ -94,6 +99,82 @@ def load_users(pathname, session_data):
 
 
 @callback(
+    Output('admin-dashboard', 'children'),
+    Input('url', 'pathname'),
+    State('session-store', 'data'),
+    prevent_initial_call='initial_duplicate'
+)
+def load_admin_dashboard(pathname, session_data):
+    # load dashboard summary when admin page is active
+    if pathname != '/admin':
+        raise dash.exceptions.PreventUpdate
+
+    if not session_data or not session_data.get('authenticated') or not session_data.get('is_admin'):
+        raise dash.exceptions.PreventUpdate
+
+    token = session_data.get('token')
+
+    # fetch counts from API endpoints (use limit=1 to read total metadata)
+    try:
+        users = api_user.list_users(token=token) or []
+        total_users = len(users) if isinstance(users, list) else (users.get('total') if isinstance(users, dict) else 0)
+    except Exception:
+        total_users = 0
+
+    try:
+        sensors = api_sensor.list_sensors(limit=1, offset=0, token=token) or {}
+        total_sensors = sensors.get('total', 0) if isinstance(sensors, dict) else 0
+    except Exception:
+        total_sensors = 0
+
+    try:
+        pumps = api_pump.list_pumps(limit=1, offset=0, token=token) or {}
+        total_pumps = pumps.get('total', 0) if isinstance(pumps, dict) else 0
+    except Exception:
+        total_pumps = 0
+
+    try:
+        data = api_sensor_data.get_data_by_pump(limit=1, offset=0, token=token) or {}
+        total_data = data.get('total', 0) if isinstance(data, dict) else 0
+    except Exception:
+        total_data = 0
+
+    # find active users (from users list if returned as list)
+    active_users = []
+    try:
+        if isinstance(users, list):
+            for u in users:
+                if u.get('trang_thai') in (True, 'active', 'dang_hoat_dong', 1):
+                    username = u.get('ten_dang_nhap') or u.get('username') or u.get('ho_ten')
+                    active_users.append(username)
+    except Exception:
+        active_users = []
+
+    # current logged-in username from session
+    current_user = session_data.get('username')
+
+    cards = dbc.Row([
+        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng người dùng', className='card-title'), html.H3(str(total_users))])), md=3),
+        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng cảm biến', className='card-title'), html.H3(str(total_sensors))])), md=3),
+        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng máy bơm', className='card-title'), html.H3(str(total_pumps))])), md=3),
+        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng bản ghi cảm biến', className='card-title'), html.H3(str(total_data))])), md=3),
+    ], className='mb-4')
+
+    activity = dbc.Row([
+        dbc.Col(dbc.Card(dbc.CardBody([
+            html.H6('Đang đăng nhập', className='card-title'),
+            html.P(current_user or 'Không có', className='mb-0')
+        ])), md=6),
+        dbc.Col(dbc.Card(dbc.CardBody([
+            html.H6('Người dùng hoạt động', className='card-title'),
+            html.Ul([html.Li(str(u)) for u in (active_users[:10] if active_users else ['Không có'])])
+        ])), md=6),
+    ], className='mb-4')
+
+    return html.Div([cards, activity])
+
+
+@callback(
     Output('users-table-container', 'children'),
     Input('admin-users-store', 'data')
 )
@@ -141,7 +222,11 @@ def open_user_modal(new_click, edit_clicks, users, session_data, current):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
-    btn = ctx.triggered[0]['prop_id'].split('.')[0]
+    triggered = ctx.triggered[0]
+    btn = triggered['prop_id'].split('.')[0]
+    # ignore falsy n_clicks (None or 0) which can occur when dynamic components are created
+    if not triggered.get('value'):
+        raise dash.exceptions.PreventUpdate
 
     # New user
     if btn == 'btn-new-user':
@@ -234,7 +319,11 @@ def handle_modals(cancel_user, cancel_delete, delete_clicks, current, users):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
-    btn = ctx.triggered[0]['prop_id'].split('.')[0]
+    triggered = ctx.triggered[0]
+    btn = triggered['prop_id'].split('.')[0]
+    # ignore falsy n_clicks (None or 0) to avoid auto-opening modals on render
+    if not triggered.get('value'):
+        raise dash.exceptions.PreventUpdate
 
     if btn == 'cancel-user-btn':
         return False, dash.no_update, None, dash.no_update

@@ -352,7 +352,6 @@ def handle_pagination_click(page_clicks, prev_clicks, next_clicks, current, pagi
     t = obj.get('type')
     idx = obj.get('index')
     if t == 'data-page':
-        # clamp target page
         target = int(idx)
         if target < 1:
             target = 1
