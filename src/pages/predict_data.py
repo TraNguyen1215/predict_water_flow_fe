@@ -71,7 +71,6 @@ layout = html.Div([
     prevent_initial_call=True
 )
 def toggle_running(n_clicks, running):
-    # toggle state each click
     return not bool(running)
 
 
@@ -164,6 +163,3 @@ def render_table(data_store):
         rows.append(html.Tr([html.Td(idx), html.Td(d.get('time')), html.Td(d.get('flow_rate'))]))
     table = dbc.Table([html.Thead(html.Tr([html.Th('STT'), html.Th('Thời gian'), html.Th('Lưu lượng (L/s)')])), html.Tbody(rows)], bordered=True, hover=True, responsive=True)
     return html.Div(className='table-scroll', children=[table])
-
-
-# Note: Clear behavior for predict-data-store is handled in the combined `tick_or_clear` callback above.

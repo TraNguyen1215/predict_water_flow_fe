@@ -245,7 +245,6 @@ layout = html.Div([
         #     ], md=4),
         ]),
         
-        # Multi-parameter chart
         dbc.Row([
             dbc.Col([
                 dbc.Card([

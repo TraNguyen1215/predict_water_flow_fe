@@ -92,6 +92,11 @@ def display_page(pathname, session_data):
             page = admin_sensor_types.layout
         else:
             page = login.layout
+    elif pathname == '/admin/users':
+        if is_authenticated and is_admin:
+            page = admin_users.layout
+        else:
+            page = login.layout
     elif pathname == '/admin' or (pathname and pathname.startswith('/admin')):
         if is_authenticated and is_admin:
             page = admin.layout
