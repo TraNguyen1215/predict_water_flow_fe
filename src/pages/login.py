@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 import dash
-from api.auth import authenticate_user, forgot_password_verify, forgot_password_reset
+from api.auth import authenticate_user, forgot_password_verify, forgot_password_reset, get_user_info
 
 layout = html.Div(
     className="auth-container",
@@ -133,13 +133,26 @@ def login_user(n_clicks, username, password):
     
     success, message, token, token_exp = authenticate_user(username, password)
     if success:
+        is_admin = False
+        try:
+            user_info = get_user_info(username, token=token)
+            if user_info.get('quan_tri_vien')==True:
+                is_admin = True
+            else:
+                is_admin = False
+            
+        except Exception:
+            is_admin = False
+
         session_data = {
             'authenticated': True,
             'username': username,
             'token': token,
-            'token_exp': token_exp
+            'token_exp': token_exp,
+            'is_admin': is_admin
         }
-        return dbc.Alert(message, color="success", dismissable=True), session_data, '/dashboard'
+        redirect_path = '/admin' if is_admin else '/'
+        return dbc.Alert(message, color="success", dismissable=True), session_data, redirect_path
     else:
         return dbc.Alert(message, color="danger", dismissable=True), dash.no_update, dash.no_update
 

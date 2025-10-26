@@ -9,14 +9,22 @@ def _url(path: str) -> str:
     return URL_API_BASE.rstrip('/') + '/' + path.lstrip('/')
 
 
-def get_pump_memory_logs(ma_may_bom: int, token: Optional[str] = None, limit: Optional[int] = None, offset: int = 0) -> Dict[str, Any]:
+def get_pump_memory_logs(ma_may_bom: int, token: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, date: Optional[str] = None) -> Dict[str, Any]:
 
 
     try:
         headers = {}
         if token:
             headers['Authorization'] = f'Bearer {token}'
-        resp = requests.get(_url('nhat-ky-may-bom'), params={'limit': limit, 'offset': offset, 'ma_may_bom': ma_may_bom }, timeout=5, headers=headers)
+
+        params = {'limit': limit, 'offset': offset, 'ma_may_bom': ma_may_bom}
+
+        if date:
+            endpoint = f'nhat-ky-may-bom/ngay/{date}'
+            resp = requests.get(_url(endpoint), params=params, timeout=5, headers=headers)
+        else:
+            resp = requests.get(_url('nhat-ky-may-bom'), params=params, timeout=5, headers=headers)
+
         try:
             data = resp.json() if resp.content else {}
         except Exception:

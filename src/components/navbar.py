@@ -1,8 +1,8 @@
 import dash_bootstrap_components as dbc
-from dash import html, dcc
+from dash import html
 
 
-def create_navbar(is_authenticated=False, current_path: str = None):
+def create_navbar(is_authenticated=False, is_admin=False, current_path: str = None):
     def is_active(href: str) -> bool:
         if not current_path:
             return False
@@ -18,13 +18,24 @@ def create_navbar(is_authenticated=False, current_path: str = None):
             dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom", active=is_active('/pump'))),
             dbc.NavItem(dbc.NavLink("Dữ liệu cảm biến", href="/sensor_data", className="nav-link-custom", active=is_active('/sensor_data'))),
             dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
+        ]
+
+        if is_admin:
+            admin_items = [
+                dbc.NavItem(dbc.NavLink("Người dùng", href="/admin", className="nav-link-custom", active=is_active('/admin') or is_active('/admin/users'))),
+                dbc.NavItem(dbc.NavLink("Mô hình", href="/admin/models", className="nav-link-custom", active=is_active('/admin/models'))),
+                dbc.NavItem(dbc.NavLink("Loại cảm biến", href="/admin/sensor-types", className="nav-link-custom", active=is_active('/admin/sensor-types'))),
+            ]
+            nav_items.extend(admin_items)
+
+        nav_items.extend([
             dbc.NavItem(dbc.NavLink("Tài liệu", href="/documentation", className="nav-link-custom", active=is_active('/documentation'))),
             dbc.NavItem(dbc.NavLink("Tài khoản", href="/account", className="nav-link-custom", active=is_active('/account'))),
             dbc.NavItem(dbc.NavLink([
                 html.I(className="fas fa-sign-out-alt me-2"),
                 "Đăng xuất"
             ], href="/logout", className="nav-link-custom", active=is_active('/logout'))),
-        ]
+        ])
     else:
         nav_items = [
             dbc.NavItem(dbc.NavLink("Đăng nhập", href="/login", className="nav-link-custom", active=is_active('/login'))),
@@ -57,5 +68,5 @@ def create_navbar(is_authenticated=False, current_path: str = None):
         className="navbar-custom shadow-sm mb-4",
         sticky="top"
     )
-    
+
     return navbar

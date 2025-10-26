@@ -3,7 +3,7 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import session
 import os
-from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation, predict_data
+from pages import home, login, register, account, settings, sensor, pump, sensor_data, documentation, predict_data, admin, admin_models, admin_sensor_types
 from components.navbar import create_navbar
 from components.footer import create_footer
 
@@ -40,6 +40,7 @@ app.layout = html.Div([
 def display_page(pathname, session_data):
     
     is_authenticated = session_data and session_data.get('authenticated', False)
+    is_admin = session_data and session_data.get('is_admin', False)
     
     if pathname == '/login':
         page = login.layout
@@ -77,12 +78,28 @@ def display_page(pathname, session_data):
             page = login.layout
     elif pathname == '/documentation':
         page = documentation.layout
+    elif pathname == '/admin/models':
+        if is_authenticated and is_admin:
+            page = admin_models.layout
+        else:
+            page = login.layout
+    elif pathname == '/admin/sensor-types':
+        if is_authenticated and is_admin:
+            page = admin_sensor_types.layout
+        else:
+            page = login.layout
+    elif pathname == '/admin' or (pathname and pathname.startswith('/admin')):
+        # Admin area (users) - only accessible to authenticated admin users
+        if is_authenticated and is_admin:
+            page = admin.layout
+        else:
+            page = login.layout
     else:
         page = home.layout
 
     try:
         if is_authenticated and hasattr(page, 'children') and isinstance(page.children, (list, tuple)) and len(page.children) > 0:
-            page.children[0] = create_navbar(is_authenticated, current_path=pathname)
+            page.children[0] = create_navbar(is_authenticated, is_admin, current_path=pathname)
     except Exception:
         pass
 

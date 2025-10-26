@@ -81,7 +81,11 @@ layout = html.Div([
         ,
         dbc.Modal([
             dbc.ModalHeader(id='pump-memory-modal-title'),
-            dbc.ModalBody(dcc.Loading(html.Div(id='pump-memory-body'))),
+            dbc.ModalBody(dcc.Loading(html.Div([
+                dcc.DatePickerSingle(id='pump-memory-date', date=datetime.date.today().isoformat(), display_format='DD/MM/YYYY', className='mb-3', max_date_allowed=datetime.date.today().isoformat(),
+                                     initial_visible_month=datetime.date.today().isoformat()),
+                html.Div(id='pump-memory-body')
+            ]))),
             dbc.ModalFooter([
                 dbc.Button('Trước', id='pump-memory-prev', className='btn-edit me-2', size='sm'),
                 dbc.Button('Sau', id='pump-memory-next', className='btn-edit me-2', size='sm'),
@@ -283,11 +287,11 @@ def perform_delete(n_confirm, delete_id, session_data):
 
 @callback(
     [Output('pump-memory-modal', 'is_open'), Output('pump-memory-modal-title', 'children'), Output('pump-memory-body', 'children'), Output('pump-memory-page-store', 'data')],
-    [Input({'type': 'memory-pump', 'index': dash.ALL}, 'n_clicks'), Input('pump-memory-prev', 'n_clicks'), Input('pump-memory-next', 'n_clicks')],
+    [Input({'type': 'memory-pump', 'index': dash.ALL}, 'n_clicks'), Input('pump-memory-prev', 'n_clicks'), Input('pump-memory-next', 'n_clicks'), Input('pump-memory-date', 'date')],
     [State('pump-data-store', 'data'), State('session-store', 'data'), State('pump-memory-page-store', 'data')],
     prevent_initial_call=True
 )
-def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data, page_store):
+def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store, session_data, page_store):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
@@ -295,15 +299,19 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
     prop = trig.get('prop_id', '').split('.')[0]
     trig_value = trig.get('value')
 
+    # ignore falsy triggers
     if not trig_value:
         raise PreventUpdate
 
     is_nav_prev = (prop == 'pump-memory-prev')
     is_nav_next = (prop == 'pump-memory-next')
     is_nav = is_nav_prev or is_nav_next
+    is_date_change = (prop == 'pump-memory-date')
 
+    # determine pump id (ma_id)
     ma_id = None
-    if is_nav:
+    if is_date_change or is_nav:
+        # use stored ma_id
         if not page_store or not isinstance(page_store, dict):
             raise PreventUpdate
         try:
@@ -324,6 +332,7 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
 
+    # pagination defaults
     page = 1
     limit = 5
     total = 0
@@ -334,6 +343,13 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
     except Exception:
         page, limit = 1, 5
 
+    # if date changed, reset to first page
+    if is_date_change:
+        page = 1
+    # if opening modal (memory-pump click), reset to first page
+    if (not is_nav) and (not is_date_change):
+        page = 1
+
     if prop == 'pump-memory-prev':
         if page > 1:
             page -= 1
@@ -343,9 +359,29 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
     offset = (page - 1) * limit
 
     try:
-        resp = get_pump_memory_logs(ma_id, token=token, limit=limit, offset=offset)
+        resp = get_pump_memory_logs(ma_id, token=token, limit=limit, offset=offset, date=selected_date)
     except Exception as e:
         resp = {'data': [], 'error': str(e), 'total': 0}
+
+    try:
+        total_from_resp = int(resp.get('total') or 0)
+    except Exception:
+        total_from_resp = 0
+
+    max_pages = 1
+    try:
+        if total_from_resp and int(limit) > 0:
+            max_pages = max(1, (int(total_from_resp) + int(limit) - 1) // int(limit))
+    except Exception:
+        max_pages = 1
+
+    if page > max_pages:
+        page = max_pages
+        offset = (page - 1) * limit
+        try:
+            resp = get_pump_memory_logs(ma_id, token=token, limit=limit, offset=offset, date=selected_date)
+        except Exception as e:
+            resp = {'data': [], 'error': str(e), 'total': 0}
 
     items = resp.get('data') or []
     if not isinstance(items, list):
@@ -353,7 +389,6 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
 
     try:
         items = sorted(items, key=lambda it: it.get('ma_may_bom', 0), reverse=True)
-
     except Exception:
         items = items
 
@@ -403,16 +438,8 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
             duration_str = '—'
 
         rows.append(html.Tr([html.Td(str(stt)), html.Td(bat_str), html.Td(tat_str), html.Td(duration_str), html.Td(ghi_chu)]))
-
-    if not rows:
-        body = html.Div('Không có nhật ký cho máy bơm này.', className='text-center')
-    else:
-        table = dbc.Table([
-            html.Thead(html.Tr([html.Th('STT'), html.Th('Thời gian bật'), html.Th('Thời gian tắt'), html.Th('Thời lượng'), html.Th('Ghi chú')])),
-            html.Tbody(rows)
-        ], bordered=True, hover=True, responsive=True)
-        body = html.Div(className='table-scroll', children=[table])
-
+    
+    # determine pump_name from sore data
     pump_name = None
     try:
         for it in (store.get('data') or []):
@@ -426,6 +453,19 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, store, session_data,
                     break
     except Exception:
         pump_name = None
+
+    if selected_date:
+        if not rows:
+            body = html.Div('Không có nhật ký của máy bơm ' + str(pump_name if pump_name else ma_id) + ' vào ngày đã chọn.', className='text-center')
+
+    if not rows:
+        body = html.Div('Không có nhật ký của máy bơm ' + str(pump_name if pump_name else ma_id) + '.', className='text-center')
+    else:
+        table = dbc.Table([
+            html.Thead(html.Tr([html.Th('STT'), html.Th('Thời gian bật'), html.Th('Thời gian tắt'), html.Th('Thời lượng'), html.Th('Ghi chú')])),
+            html.Tbody(rows)
+        ], bordered=True, hover=True, responsive=True)
+        body = html.Div(className='table-scroll', children=[table])
 
     title = f"Nhật ký máy bơm {pump_name if pump_name else ma_id}"
 
