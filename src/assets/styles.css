@@ -1089,9 +1089,6 @@ textarea {
     box-shadow: 0 12px 32px rgba(3, 88, 163, 0.12);
     transform: translateY(-4px);
 }
-.pump-card .card-body {
-    padding: 1.5rem;
-}
 .pump-detail {
     margin-bottom: 0.65rem;
     display: flex;

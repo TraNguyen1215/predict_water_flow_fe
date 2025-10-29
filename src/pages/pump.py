@@ -11,9 +11,9 @@ import pandas as pd
 
 def create_status_badge(status):
     if status:
-        return html.Span("đang chạy", className="status-badge running")
+        return html.Span("Đang chạy", className="status-badge running")
     else:
-        return html.Span("đã dừng", className="status-badge stopped")
+        return html.Span("Đã dừng", className="status-badge stopped")
 
 def create_sensor_indicator(enabled=True):
     return html.Span(
@@ -44,23 +44,13 @@ def create_pump_card(pump):
                     ], className="text-muted d-block")
                 ]),
                 html.Div([
-                    create_status_badge(pump.get('trang_thai', False)),
                     html.Div([
-                        dbc.Button(
-                            html.I(className="fas fa-edit"),
-                            id={'type': 'edit-pump', 'index': pump.get('ma_may_bom')},
-                            color="light",
-                            size="sm",
-                            className="me-2 action-btn",
+                        create_status_badge(pump.get('trang_thai', False)),
+                        html.Small(
+                            {0: "Thủ công", 1: "Tự động", 2: "Bảo trì"}.get(pump.get('che_do', 0), "Thủ công"),
+                            className="ms-2 text-muted"
                         ),
-                        dbc.Button(
-                            html.I(className="fas fa-trash"),
-                            id={'type': 'delete-pump', 'index': pump.get('ma_may_bom')},
-                            color="light",
-                            size="sm",
-                            className="action-btn",
-                        ),
-                    ], className="d-flex align-items-center mt-2")
+                    ], className="d-flex align-items-center")
                 ], className="d-flex flex-column align-items-end")
             ], className="d-flex justify-content-between align-items-start mb-3"),
 
@@ -95,17 +85,30 @@ def create_pump_card(pump):
                 ], width=6),
             ], className="mb-3"),
 
+            html.Hr(className="my-3"),
             html.Div([
-                html.Small("Cảm biến:", className="text-muted me-2"),
-                create_sensor_indicator(pump.get('cam_bien_luu_luong', True)),
-                html.Span("Lưu lượng", className="ms-1 me-3"),
-                create_sensor_indicator(pump.get('cam_bien_mua', True)),
-                html.Span("Mưa", className="ms-1 me-3"),
-                create_sensor_indicator(pump.get('cam_bien_nhiet_do', True)),
-                html.Span("Nhiệt độ", className="ms-1 me-3"),
-                create_sensor_indicator(pump.get('cam_bien_do_am', True)),
-                html.Span("Độ ẩm", className="ms-1")
-            ], className="sensor-indicators")
+                dbc.Button(
+                    html.I(className="fas fa-eye"),
+                    id={'type': 'view-pump', 'index': pump.get('ma_may_bom')},
+                    color="light",
+                    size="sm",
+                    className="me-2 action-btn",
+                ),
+                dbc.Button(
+                    html.I(className="fas fa-edit"),
+                    id={'type': 'edit-pump', 'index': pump.get('ma_may_bom')},
+                    color="light",
+                    size="sm",
+                    className="me-2 action-btn",
+                ),
+                dbc.Button(
+                    html.I(className="fas fa-trash"),
+                    id={'type': 'delete-pump', 'index': pump.get('ma_may_bom')},
+                    color="light",
+                    size="sm",
+                    className="action-btn",
+                )
+            ], className="d-flex justify-content-end")
         ])
     ], className="pump-card mb-3", style={"height": "100%"})
 
@@ -183,10 +186,49 @@ layout = html.Div([
                               size="sm",
                               className="ms-2")
                 ]),
-                dbc.Button([
-                    html.I(className="fas fa-plus me-2"),
-                    "Thêm máy bơm"
-                ], id="open-add-pump", color="primary", size="sm", className="ms-3")
+                html.Div([
+                    dcc.Dropdown(
+                        id='pump-filter-che-do',
+                        options=[
+                            {'label': 'Tất cả chế độ', 'value': 'all'},
+                            {'label': 'Thủ công', 'value': '0'},
+                            {'label': 'Tự động', 'value': '1'},
+                            {'label': 'Bảo trì', 'value': '2'}
+                        ],
+                        value='all',
+                        clearable=False,
+                        placeholder='Chế độ',
+                        style={
+                            'width': '140px',
+                            'fontSize': '13px',
+                            'borderRadius': '4px',
+                            'color': '#212529'
+                        }
+                    ),
+                    dcc.Dropdown(
+                        id='pump-filter-trang-thai',
+                        options=[
+                            {'label': 'Tất cả trạng thái', 'value': 'all'},
+                            {'label': 'Đang chạy', 'value': 'true'},
+                            {'label': 'Đã dừng', 'value': 'false'}
+                        ],
+                        value='all',
+                        clearable=False,
+                        placeholder='Trạng thái',
+                        style={
+                            'width': '160px',
+                            'fontSize': '13px',
+                            'borderRadius': '4px',
+                            'color': '#212529',
+                            'marginLeft': '8px',
+                            'marginRight': '20px'
+                        }
+                    ),
+                    dbc.Button([
+                        html.I(className="fas fa-plus me-2"),
+                        "Thêm máy bơm"
+                    ], id="open-add-pump", color="primary", size="sm")
+                ], className="d-flex align-items-center")
             ], width="auto", className="ms-auto d-flex align-items-center")
         ], className="mb-4 align-items-center"),
 
@@ -207,7 +249,16 @@ layout = html.Div([
                     dbc.Label('Mã IoT liên kết', className='mt-2'),
                     dbc.Input(id='pump-ma-iot', type='text'),
                     dbc.Label('Chế độ', className='mt-2'),
-                    dbc.Input(id='pump-che-do', type='number', value=0),
+                    dcc.Dropdown(
+                        id='pump-che-do',
+                        options=[
+                            {'label': 'Thủ công', 'value': 0},
+                            {'label': 'Tự động', 'value': 1},
+                            {'label': 'Bảo trì', 'value': 2}
+                        ],
+                        value=0,
+                        clearable=False
+                    ),
                     dbc.Label('Trạng thái', className='mt-2'),
                     dcc.Dropdown(id='pump-trang-thai', options=[{'label': 'Tắt', 'value': False}, {'label': 'Bật', 'value': True}], value=False, clearable=False),
                     dcc.Store(id='pump-edit-id')
@@ -245,7 +296,7 @@ layout = html.Div([
         ,
         dcc.Store(id='pump-memory-page-store', data={'page': 1, 'limit': 5, 'total': 0, 'ma_id': None}),
 
-    ], fluid=True)
+    ], fluid=True, style={"padding":"20px 40px"})
 ], className='page-container', style={"paddingTop": "5px"})
 
 
@@ -289,7 +340,6 @@ def load_pumps(n_intervals, selected_date, session_data):
                             pump['do_am'] = latest_data.get('do_am', 0)
                             pump['thoi_gian_cap_nhat'] = latest_data.get('thoi_gian', '')
                         else:
-                            # If no data for the selected date, fall back to the most recent data
                             if current_date == datetime.date.today().isoformat():
                                 recent_data = get_data_by_pump(pump.get('ma_may_bom'), limit=1, token=token)
                                 if recent_data and isinstance(recent_data, dict) and recent_data.get('data'):
@@ -329,14 +379,25 @@ def load_pumps(n_intervals, selected_date, session_data):
 
 @callback(
     Output('pump-cards-container', 'children'),
-    [Input('pump-data-store', 'data')]
+    [Input('pump-data-store', 'data'),
+     Input('pump-filter-che-do', 'value'),
+     Input('pump-filter-trang-thai', 'value')]
 )
-def update_pump_cards(data):
+def update_pump_cards(data, filter_che_do, filter_trang_thai):
     if not data or not isinstance(data, dict) or 'data' not in data:
-        return html.Div("No pumps found", className="text-center text-muted my-5")
+        return html.Div("Không tìm thấy máy bơm nào!", className="text-center text-muted my-5")
 
-    pumps = sorted(data.get('data', []), 
-                  key=lambda x: (-int(x.get('trang_thai', False)), x.get('ma_may_bom', 0)))
+    pumps = data.get('data', [])
+    
+    if filter_che_do != 'all':
+        pumps = [p for p in pumps if str(p.get('che_do', 0)) == filter_che_do]
+    
+    if filter_trang_thai != 'all':
+        filter_value = filter_trang_thai == 'true'
+        pumps = [p for p in pumps if p.get('trang_thai', False) == filter_value]
+
+    pumps = sorted(pumps, 
+                key=lambda x: (-int(x.get('trang_thai', False)), x.get('ma_may_bom', 0)))
 
     pump_cards = []
     for pump in pumps:
