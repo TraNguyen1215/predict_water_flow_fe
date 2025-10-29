@@ -1322,3 +1322,107 @@ textarea {
         font-size: 1.25rem;
     }
 }
+
+/* Pump Page Styles */
+.stats-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.pump-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
+}
+
+.pump-title {
+    font-weight: 600;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-badge.running {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-badge.stopped {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.status-badge.maintenance {
+    background-color: #dc3545;
+    color: white;
+}
+
+.metric-item {
+    padding: 12px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.sensor-indicators {
+    border-top: 1px solid #e9ecef;
+    padding-top: 12px;
+}
+
+.sensor-indicator {
+    font-size: 10px;
+    vertical-align: middle;
+}
+
+.sensor-indicator.active {
+    color: #28a745;
+}
+
+.sensor-indicator.inactive {
+    color: #dc3545;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #212529;
+}
+
+.pump-cards-grid {
+    margin: -8px;
+}
+
+.pump-cards-grid > div {
+    padding: 8px;
+}
+
+/* Responsive adjustments for pump page */
+@media (max-width: 768px) {
+    .stats-number {
+        font-size: 1.75rem;
+    }
+    
+    .metric-item {
+        padding: 8px;
+    }
+    
+    .metric-value {
+        font-size: 1rem;
+    }
+}

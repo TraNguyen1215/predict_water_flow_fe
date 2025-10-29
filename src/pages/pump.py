@@ -9,40 +9,190 @@ import dash
 import datetime
 import pandas as pd
 
+def create_status_badge(status):
+    if status:
+        return html.Span("đang chạy", className="status-badge running")
+    else:
+        return html.Span("đã dừng", className="status-badge stopped")
 
-def _pump_row_item(p):
-    return html.Tr([
-        html.Td(p.get('ma_may_bom')),
-        html.Td(p.get('ten_may_bom')),
-        html.Td(p.get('mo_ta')),
-        html.Td(p.get('ma_iot_lk') or ''),
-        html.Td(p.get('che_do')),
-    html.Td('Bật' if p.get('trang_thai') else 'Tắt'),
-        html.Td(dbc.ButtonGroup([
-            dbc.Button('Nhật ký', id={'type': 'memory-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-detail', size='sm'),
-            html.Div(style={'width':'4px'}),
-            dbc.Button('Sửa', id={'type': 'edit-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-edit', size='sm'),
-            html.Div(style={'width':'4px'}),
-            dbc.Button('Xóa', id={'type': 'delete-pump', 'index': p.get('ma_may_bom')}, className='btn-action btn-outline-delete', size='sm'),
-        ]), className='col-action')
-    ])
+def create_sensor_indicator(enabled=True):
+    return html.Span(
+        "⬤", 
+        className=f"sensor-indicator {'active' if enabled else 'inactive'}"
+    )
+
+def format_datetime(dt_str):
+    if not dt_str:
+        return "Không có dữ liệu"
+    try:
+        dt = pd.to_datetime(dt_str, utc=True)
+        dt_local = dt.tz_convert('Asia/Bangkok')
+        return dt_local.strftime('%H:%M %d/%m/%Y')
+    except:
+        return "Không có dữ liệu"
+
+def create_pump_card(pump):
+    return dbc.Card([
+        dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.H5(pump.get('ten_may_bom', 'N/A'), className="pump-title mb-0"),
+                    html.Small(pump.get('mo_ta', 'Vị trí không xác định'), className="text-muted"),
+                    html.Small([
+                        html.I(className="fas fa-clock me-1"),
+                        format_datetime(pump.get('thoi_gian_tao'))
+                    ], className="text-muted d-block")
+                ]),
+                html.Div([
+                    create_status_badge(pump.get('trang_thai', False)),
+                    html.Div([
+                        dbc.Button(
+                            html.I(className="fas fa-edit"),
+                            id={'type': 'edit-pump', 'index': pump.get('ma_may_bom')},
+                            color="light",
+                            size="sm",
+                            className="me-2 action-btn",
+                        ),
+                        dbc.Button(
+                            html.I(className="fas fa-trash"),
+                            id={'type': 'delete-pump', 'index': pump.get('ma_may_bom')},
+                            color="light",
+                            size="sm",
+                            className="action-btn",
+                        ),
+                    ], className="d-flex align-items-center mt-2")
+                ], className="d-flex flex-column align-items-end")
+            ], className="d-flex justify-content-between align-items-start mb-3"),
+
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.I(className="fas fa-tint me-2"),
+                        html.Span("Lưu lượng"),
+                        html.Div(f"{pump.get('luu_luong', 0)} L/phút", className="metric-value")
+                    ], className="metric-item")
+                ], width=6),
+                dbc.Col([
+                    html.Div([
+                        html.I(className="fas fa-cloud-rain me-2"),
+                        html.Span("Mưa"),
+                        html.Div("Có" if pump.get('mua', False) else "Không", className="metric-value")
+                    ], className="metric-item")
+                ], width=6),
+                dbc.Col([
+                    html.Div([
+                        html.I(className="fas fa-temperature-high me-2"),
+                        html.Span("Nhiệt độ"),
+                        html.Div(f"{pump.get('nhiet_do', 0)}°C", className="metric-value")
+                    ], className="metric-item")
+                ], width=6),
+                dbc.Col([
+                    html.Div([
+                        html.I(className="fas fa-water me-2"),
+                        html.Span("Độ ẩm"),
+                        html.Div(f"{pump.get('do_am', 0)}%", className="metric-value")
+                    ], className="metric-item")
+                ], width=6),
+            ], className="mb-3"),
+
+            html.Div([
+                html.Small("Cảm biến:", className="text-muted me-2"),
+                create_sensor_indicator(pump.get('cam_bien_luu_luong', True)),
+                html.Span("Lưu lượng", className="ms-1 me-3"),
+                create_sensor_indicator(pump.get('cam_bien_mua', True)),
+                html.Span("Mưa", className="ms-1 me-3"),
+                create_sensor_indicator(pump.get('cam_bien_nhiet_do', True)),
+                html.Span("Nhiệt độ", className="ms-1 me-3"),
+                create_sensor_indicator(pump.get('cam_bien_do_am', True)),
+                html.Span("Độ ẩm", className="ms-1")
+            ], className="sensor-indicators")
+        ])
+    ], className="pump-card mb-3", style={"height": "100%"})
 
 
 layout = html.Div([
     create_navbar(is_authenticated=True),
     dbc.Container([
-        dbc.Row([dbc.Col(TopBar('Quản lý máy bơm', search_id='pump-search', add_button={'id':'open-add-pump','label':'Thêm máy bơm'}))], className='my-3'),
-
         dbc.Row([
-            dbc.Col(html.Div(className='table-area', children=[
-                dcc.Loading(html.Div(id='pump-table-container')),
-                html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination'), html.Div(id='pump-total', className='pt-2 total-text')])
-            ]))
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("4", id="total-pumps", className="stats-number"),
+                        html.P("Tổng số máy bơm", className="mb-0"),
+                        html.Small("Công suất hệ thống", className="text-muted")
+                    ])
+                ], className="stats-card")
+            ], xs=12, sm=6, md=3, className="mb-4"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("0", id="running-pumps", className="stats-number text-success"),
+                        html.P("Đang chạy", className="mb-0"),
+                        html.Small("Máy bơm hoạt động", className="text-muted")
+                    ])
+                ], className="stats-card")
+            ], xs=12, sm=6, md=3, className="mb-4"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("0", id="stopped-pumps", className="stats-number text-warning"),
+                        html.P("Đã dừng", className="mb-0"),
+                        html.Small("Máy bơm không hoạt động", className="text-muted")
+                    ])
+                ], className="stats-card")
+            ], xs=12, sm=6, md=3, className="mb-4"),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("0", id="maintenance-pumps", className="stats-number text-danger"),
+                        html.P("Bảo trì", className="mb-0"),
+                        html.Small("Đang bảo trì", className="text-muted")
+                    ])
+                ], className="stats-card")
+            ], xs=12, sm=6, md=3, className="mb-4"),
         ]),
 
+        dbc.Row([
+            dbc.Col([
+                html.H5("Danh sách máy bơm", className="section-title mb-0")
+            ], width="auto", className="d-flex align-items-center"),
+            dbc.Col([
+                dbc.ButtonGroup([
+                    dbc.Button(html.I(className="fas fa-chevron-left"), 
+                              id="pump-date-prev", 
+                              color="light",
+                              size="sm",
+                              className="me-2"),
+                    html.Div([
+                        dcc.DatePickerSingle(
+                            id='pump-date-picker',
+                            date=datetime.date.today().isoformat(),
+                            display_format='DD/MM/YYYY',
+                            className='mb-0',
+                            max_date_allowed=datetime.date.today().isoformat(),
+                            initial_visible_month=datetime.date.today().isoformat(),
+                            placeholder='Chọn ngày'
+                        )
+                    ], style={'display': 'inline-block'}),
+                    dbc.Button(html.I(className="fas fa-chevron-right"), 
+                              id="pump-date-next", 
+                              color="light",
+                              size="sm",
+                              className="ms-2")
+                ]),
+                dbc.Button([
+                    html.I(className="fas fa-plus me-2"),
+                    "Thêm máy bơm"
+                ], id="open-add-pump", color="primary", size="sm", className="ms-3")
+            ], width="auto", className="ms-auto d-flex align-items-center")
+        ], className="mb-4 align-items-center"),
+
+        dbc.Row(id="pump-cards-container", className="pump-cards-grid"),
+
         dcc.Store(id='pump-data-store'),
-        dcc.Store(id='pump-page-store', data={'page': 1, 'limit': 20}),
-        dcc.Store(id='pump-pagination-store', data={'max': 1}),
         dcc.Store(id='pump-delete-id'),
         dcc.Interval(id='pump-interval', interval=5*1000, n_intervals=0),
 
@@ -83,7 +233,7 @@ layout = html.Div([
             dbc.ModalHeader(id='pump-memory-modal-title'),
             dbc.ModalBody(dcc.Loading(html.Div([
                 dcc.DatePickerSingle(id='pump-memory-date', date=datetime.date.today().isoformat(), display_format='DD/MM/YYYY', className='mb-3', max_date_allowed=datetime.date.today().isoformat(),
-                                     initial_visible_month=datetime.date.today().isoformat()),
+                                    initial_visible_month=datetime.date.today().isoformat()),
                 html.Div(id='pump-memory-body')
             ]))),
             dbc.ModalFooter([
@@ -100,79 +250,107 @@ layout = html.Div([
 
 
 @callback(
-    [Output('pump-data-store', 'data', allow_duplicate=True), Output('pump-pagination-store', 'data', allow_duplicate=True), Output('pump-total', 'children')],
-    [Input('url', 'pathname'), Input('pump-page-store', 'data'), Input('pump-interval', 'n_intervals')],
-    State('session-store', 'data'),
+    [
+        Output('pump-data-store', 'data', allow_duplicate=True),
+        Output('total-pumps', 'children'),
+        Output('running-pumps', 'children'),
+        Output('stopped-pumps', 'children'),
+        Output('maintenance-pumps', 'children')
+    ],
+    [Input('pump-interval', 'n_intervals'),
+     Input('pump-date-picker', 'date')],
+    [State('session-store', 'data')],
     prevent_initial_call='initial_duplicate'
 )
-def load_pumps(pathname, page_store, n_intervals, session_data):
-    if pathname != '/pump':
-        raise PreventUpdate
+def load_pumps(n_intervals, selected_date, session_data):
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
-    page = 1
-    limit = 20
-    if page_store and isinstance(page_store, dict):
-        page = int(page_store.get('page', 1))
-        limit = int(page_store.get('limit', 20))
-    offset = (page - 1) * limit
-    data = {'data': []}
-    max_pages = 1
-    total_text = '0 trong tổng số 0'
     try:
-        data = list_pumps(limit=limit, offset=offset, token=token)
-        if isinstance(data, dict) and data.get('total') is not None:
-            total = int(data.get('total') or 0)
-            max_pages = max(1, (total + limit - 1) // limit)
-        else:
-            total = len(data.get('data') or [])
-        if total > 0:
-            start = (page - 1) * limit + 1
-            end = min(page * limit, total)
-            total_text = f'{start}-{end} trong tổng số {total}'
-        else:
-            total_text = '0 trong tổng số 0'
-    except Exception:
-        data = {'data': []}
-        max_pages = 1
-        total_text = '0 trong tổng số 0'
-    return data, {'max': max_pages}, total_text
+        data = list_pumps(limit=50, offset=0, token=token)
+        if isinstance(data, dict):
+            pumps = data.get('data', [])
+            current_date = selected_date if selected_date else datetime.date.today().isoformat()
+            
+            for pump in pumps:
+                try:
+                    from api.sensor_data import get_data_by_date, get_data_by_pump
+                    sensor_data = get_data_by_date(ngay=current_date, token=token, limit=1440)
+                    
+                    if sensor_data and isinstance(sensor_data, dict) and sensor_data.get('data'):
+                        data_list = sensor_data['data'] if isinstance(sensor_data['data'], list) else [sensor_data['data']]
+                        pump_data = [d for d in data_list if d.get('ma_may_bom') == pump.get('ma_may_bom')]
+                        
+                        if pump_data:
+                            latest_data = max(pump_data, key=lambda x: x.get('thoi_gian', ''))
+                            pump['luu_luong'] = latest_data.get('luu_luong_nuoc', 0)
+                            pump['mua'] = latest_data.get('mua', False)
+                            pump['nhiet_do'] = latest_data.get('nhiet_do', 0)
+                            pump['do_am'] = latest_data.get('do_am', 0)
+                            pump['thoi_gian_cap_nhat'] = latest_data.get('thoi_gian', '')
+                        else:
+                            # If no data for the selected date, fall back to the most recent data
+                            if current_date == datetime.date.today().isoformat():
+                                recent_data = get_data_by_pump(pump.get('ma_may_bom'), limit=1, token=token)
+                                if recent_data and isinstance(recent_data, dict) and recent_data.get('data'):
+                                    latest_data = recent_data['data'][0] if isinstance(recent_data['data'], list) else recent_data['data']
+                                    pump['luu_luong'] = latest_data.get('luu_luong_nuoc', 0)
+                                    pump['mua'] = latest_data.get('mua', False)
+                                    pump['nhiet_do'] = latest_data.get('nhiet_do', 0)
+                                    pump['do_am'] = latest_data.get('do_am', 0)
+                                    pump['thoi_gian_cap_nhat'] = latest_data.get('thoi_gian', '')
+                            else:
+                                pump['luu_luong'] = 0
+                                pump['mua'] = False
+                                pump['nhiet_do'] = 0
+                                pump['do_am'] = 0
+                                pump['thoi_gian_cap_nhat'] = None
+                    else:
+                        pump['luu_luong'] = 0
+                        pump['mua'] = False
+                        pump['nhiet_do'] = 0
+                        pump['do_am'] = 0
+                        pump['thoi_gian_cap_nhat'] = None
+                except Exception as sensor_err:
+                    pump['luu_luong'] = 0
+                    pump['mua'] = False
+                    pump['nhiet_do'] = 0
+                    pump['do_am'] = 0
+                    pump['thoi_gian_cap_nhat'] = None
 
+            total = len(pumps)
+            running = sum(1 for p in pumps if p.get('trang_thai', False))
+            maintenance = sum(1 for p in pumps if p.get('che_do', 0) == 2)
+            stopped = total - running - maintenance
+            return [data, str(total), str(running), str(stopped), str(maintenance)]
+        return [{'data': []}, "0", "0", "0", "0"]
+    except Exception as e:
+        return [{'data': []}, "0", "0", "0", "0"]
 
 @callback(
-    Output('pump-table-container', 'children'),
-    [Input('pump-data-store', 'data'), Input('pump-search', 'value')]
+    Output('pump-cards-container', 'children'),
+    [Input('pump-data-store', 'data')]
 )
-def render_pump_table(data, search):
-    if not data or 'data' not in data or not data.get('data'):
-        return html.Div(className='empty-state', children=[
-            html.Div(className='empty-icon', children=[html.Img(src='/assets/img/empty-box.svg', style={'width':'64px','height':'64px'})]),
-            html.Div('Không có dữ liệu máy bơm.', className='empty-text')
-        ])
+def update_pump_cards(data):
+    if not data or not isinstance(data, dict) or 'data' not in data:
+        return html.Div("No pumps found", className="text-center text-muted my-5")
 
-    rows = []
-    items = list(data.get('data', []) or [])
-    try:
-        items.sort(key=lambda x: int(x.get('ma_may_bom') or 0))
-    except Exception:
-        items = items
-    for p in items:
-        text = ' '.join([
-            str(p.get('ten_may_bom') or ''),
-            str(p.get('mo_ta') or ''),
-            str(p.get('ma_iot_lk') or '')
-        ])
-        if search and search.strip().lower() not in text.lower():
-            continue
-        rows.append(_pump_row_item(p))
+    pumps = sorted(data.get('data', []), 
+                  key=lambda x: (-int(x.get('trang_thai', False)), x.get('ma_may_bom', 0)))
 
-    table = dbc.Table([
-        html.Thead(html.Tr([html.Th('ID'), html.Th('Tên'), html.Th('Mô tả'), html.Th('Mã IoT'), html.Th('Chế độ'), html.Th('Trạng thái'), html.Th('Thao tác')])),
-        html.Tbody(rows)
-    ], bordered=True, hover=True, responsive=True)
-
-    return html.Div(className='table-scroll', children=[table])
+    pump_cards = []
+    for pump in pumps:
+        pump_cards.append(
+            dbc.Col(
+                create_pump_card(pump),
+                xs=12, sm=12, md=6, lg=6, xl=3
+            )
+        )
+    
+    if not pump_cards:
+        return html.Div("No pumps found", className="text-center text-muted my-5")
+    
+    return pump_cards
 
 
 @callback(
@@ -479,6 +657,37 @@ def cancel_confirm(n):
     if not n:
         raise PreventUpdate
     return False
+
+@callback(
+    Output('pump-date-picker', 'date'),
+    [Input('pump-date-prev', 'n_clicks'),
+     Input('pump-date-next', 'n_clicks')],
+    State('pump-date-picker', 'date')
+)
+def update_date(prev_clicks, next_clicks, current_date):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if not current_date:
+        current_date = datetime.date.today().isoformat()
+    
+    current = datetime.datetime.strptime(current_date, '%Y-%m-%d').date()
+    today = datetime.date.today()
+    
+    if button_id == 'pump-date-prev':
+        new_date = current - datetime.timedelta(days=1)
+        return new_date.isoformat()
+    
+    elif button_id == 'pump-date-next':
+        new_date = current + datetime.timedelta(days=1)
+        if new_date <= today:  # Don't allow future dates
+            return new_date.isoformat()
+        return current_date
+    
+    raise PreventUpdate
 
 def _build_pump_pagination(current, max_pages, window=3):
     items = []

@@ -338,7 +338,7 @@ layout = html.Div([
                             ], md=3),
                         ])
                     ])
-                ], className="details-card mb-4")
+                ], className="details-card mb-4", style={"height": "100%"})
             ], lg=8, className="mb-4"),
 
             dbc.Col([
@@ -403,7 +403,7 @@ layout = html.Div([
                             ])
                         ])
                     ])
-                ], className="operator-card")
+                ], className="operator-card", style={"height": "100%"})
             ], lg=4, className="mb-4")
         ]),
 
