@@ -100,7 +100,7 @@ layout = html.Div([
 
 
 @callback(
-    [Output('pump-data-store', 'data', allow_duplicate=True), Output('pump-pagination-store', 'data'), Output('pump-total', 'children')],
+    [Output('pump-data-store', 'data', allow_duplicate=True), Output('pump-pagination-store', 'data', allow_duplicate=True), Output('pump-total', 'children')],
     [Input('url', 'pathname'), Input('pump-page-store', 'data'), Input('pump-interval', 'n_intervals')],
     State('session-store', 'data'),
     prevent_initial_call='initial_duplicate'
