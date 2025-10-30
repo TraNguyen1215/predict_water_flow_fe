@@ -217,7 +217,7 @@ layout = html.Div([
                                 ], className="stat-card-wrapper")
                             ], lg=3, md=6, className="mb-3"),
                         ])
-                    ])
+                    ],  style={"padding": "12px"})
                 ], className="h-100 stats-card")
             ], lg=9, className="mb-4 h-100"),
             
