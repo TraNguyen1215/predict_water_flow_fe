@@ -1,3 +1,43 @@
+/* Card header styles */
+.card-header-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.operator-card .card-header {
+    padding: 0.75rem 1.25rem;
+    background-color: var(--primary-color);
+    border-bottom: 1px solid var(--primary-color-dark);
+}
+
+.operator-card .card-header-title {
+    color: white;
+}
+
+.card-header {
+    padding: 0.75rem 1.25rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Equal height row styles */
+.equal-height-row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.equal-height-row > [class*='col-'] {
+    display: flex;
+    flex-direction: column;
+}
+
+.equal-height-row .card {
+    flex: 1 1 auto;
+}
+
 :root {
     /* Primary theme: blue */
     --primary-color: #0358a3;
@@ -289,6 +329,71 @@ body {
     border-radius: var(--border-radius);
     border: 1px solid #e6edf3;
     box-shadow: none;
+}
+.pump-control-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.control-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.control-selected-name {
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.pump-control-actions .pump-control-btn {
+    min-width: 84px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.9rem;
+}
+
+.pump-control-actions .pump-control-btn.start-btn:not([disabled]) {
+    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
+}
+
+.pump-control-actions .pump-control-btn.stop-btn:not([disabled]) {
+    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.16);
+}
+
+.pump-control-actions .pump-control-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pump-control-actions .pump-control-btn i {
+    font-size: 0.8rem;
+}
+
+.pump-mode-wrapper {
+    background: rgba(15, 23, 42, 0.02);
+    border: 1px solid #e6edf3;
+    border-radius: 10px;
+    padding: 0.75rem;
+}
+
+.pump-mode-select .form-check {
+    margin-right: 1rem;
+}
+
+.pump-mode-select .form-check-input {
+    margin-right: 0.35rem;
+    cursor: pointer;
+}
+
+.pump-mode-select .form-check-label {
+    font-weight: 600;
+    color: #0f172a;
 }
 .stat-card .card-body,
 .feature-card .card-body,
@@ -1105,6 +1210,32 @@ textarea {
     align-items: flex-start;
     gap: 1rem;
 }
+.pump-card-scroll-item {
+    flex: 0 0 calc((100% - 4rem) / 5);
+    max-width: calc((100% - 4rem) / 5);
+    min-width: 200px;
+    scroll-snap-align: start;
+}
+.pump-card-scroll-item:last-child {
+    margin-right: 0.25rem;
+}
+
+.pump-card-scroll-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1rem;
+    padding: 0.5rem 0 0.5rem 0.25rem;
+    margin-bottom: 1rem;
+    scroll-snap-type: x proximity;
+}
+.pump-card-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+.pump-card-scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(3, 88, 163, 0.35);
+    border-radius: 999px;
+}
 .pump-header {
     display: flex;
     gap: 0.75rem;
@@ -1216,7 +1347,7 @@ textarea {
 .chart-card .card-header {
     background: #ffffff;
     border-bottom: 1px solid #e6edf3;
-    padding: 1.25rem;
+    padding: 12px 20px;
 }
 .chart-card .card-header h5 {
     font-size: 1.1rem;
@@ -1234,7 +1365,7 @@ textarea {
 .details-card .card-header {
     background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
     border-bottom: 1px solid #e6edf3;
-    padding: 1.25rem;
+    padding: 12px 20px;
 }
 .details-card .card-header h5 {
     font-size: 1.1rem;
@@ -1279,18 +1410,16 @@ textarea {
     .stat-value {
         font-size: 1.75rem;
     }
-    .stat-value {
-        font-size: 1.75rem;
-    }
     .operator-card {
         margin-top: 1rem;
     }
-}
-@media (max-width: 992px) {
-    .pump-card-content {
-        flex-direction: column;
-        align-items: flex-start;
+    .pump-card-scroll-item {
+        flex: 0 0 calc((100% - 3rem) / 4);
+        max-width: calc((100% - 3rem) / 4);
     }
+}
+
+@media (max-width: 992px) {
     .pump-card-content {
         flex-direction: column;
         align-items: flex-start;
@@ -1301,22 +1430,35 @@ textarea {
         padding-top: 1rem;
         border-top: 1px solid #e6edf3;
     }
-}
-@media (max-width: 768px) {
-    .stat-card-wrapper {
-        margin-bottom: 1rem;
+    .pump-card-scroll-container {
+        gap: 0.75rem;
+        padding: 0.5rem 0;
     }
+    .pump-card-scroll-item {
+        flex: 0 0 calc((100% - 1.5rem) / 3);
+        max-width: calc((100% - 1.5rem) / 3);
+        min-width: 190px;
+    }
+}
+
+@media (max-width: 768px) {
     .stat-card-wrapper {
         margin-bottom: 1rem;
     }
     .stat-value {
         font-size: 1.5rem;
     }
-    .pump-flow {
-        font-size: 1rem;
+    .pump-card-scroll-item {
+        flex: 0 0 calc((100% - 0.75rem) / 2);
+        max-width: calc((100% - 0.75rem) / 2);
     }
-    .card-metric-value {
-        font-size: 1.25rem;
+}
+
+@media (max-width: 576px) {
+    .pump-card-scroll-item {
+        flex: 0 0 90%;
+        max-width: 90%;
+        min-width: 0;
     }
 }
 

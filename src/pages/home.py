@@ -9,7 +9,7 @@ from components.navbar import create_navbar
 from dash.exceptions import PreventUpdate
 import requests
 import json
-from api.sensor_data import get_data_by_date, get_data_by_pump
+from api.sensor_data import get_data_by_date
 from api.pump import list_pumps, get_pump, update_pump
 from api.sensor import list_sensors
 from api.user import get_user, list_users
@@ -105,8 +105,13 @@ def fetch_sensor_data(token=None):
 def fetch_pump_list(token=None):
     try:
         response = list_pumps(limit=50, offset=0, token=token)
-        if isinstance(response, dict) and 'data' in response:
-            return response['data']
+        if isinstance(response, dict):
+            data = response.get('data')
+            if isinstance(data, list):
+                return data
+            return []
+        if isinstance(response, list):
+            return response
         return []
     except Exception as e:
         print(f"Error fetching pump list: {e}")
@@ -115,12 +120,25 @@ def fetch_pump_list(token=None):
 
 def fetch_pump_latest_data(ma_may_bom, token=None):
     try:
-        response = get_data_by_pump(ma_may_bom=ma_may_bom, limit=1, offset=0, token=token)
-        if isinstance(response, dict) and 'data' in response:
-            data = response['data']
-            if data and isinstance(data, list) and len(data) > 0:
-                return data[0]
-        return None
+        today = datetime.now().strftime('%Y-%m-%d')
+        response = get_data_by_date(today, token=token, limit=1000, offset=0)
+
+        if isinstance(response, dict):
+            data = response.get('data')
+        else:
+            data = response
+
+        if not isinstance(data, list):
+            return None
+
+        str_id = str(ma_may_bom) if ma_may_bom is not None else None
+        filtered = [item for item in data if str(item.get('ma_may_bom')) == str_id]
+
+        if not filtered:
+            return None
+
+        filtered.sort(key=lambda item: item.get('thoi_gian_tao', ''), reverse=True)
+        return filtered[0]
     except Exception as e:
         print(f"Error fetching pump data: {e}")
         return None
@@ -135,7 +153,7 @@ layout = html.Div([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Thống Kê", className="mb-0")
+                        html.H6("Thống Kê", className="card-header-title")
                     ]),
                     dbc.CardBody([
                         dbc.Row([
@@ -200,13 +218,13 @@ layout = html.Div([
                             ], lg=3, md=6, className="mb-3"),
                         ])
                     ])
-                ], className="stats-card", style={"padding": "12px"})
-            ], lg=9, className="mb-4"),
+                ], className="h-100 stats-card")
+            ], lg=9, className="mb-4 h-100"),
             
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Thông Tin Người Dùng", className="mb-0")
+                        html.H6("Thông Tin Người Dùng", className="card-header-title")
                     ]),
                     dbc.CardBody([
                         html.Div([
@@ -231,36 +249,36 @@ layout = html.Div([
                             ], className="operator-info-row"),
                         ])
                     ])
-                ], className="operator-card")
-            ], lg=3, className="mb-4"),
-        ], className="mb-4"),
+                ], className="h-100 operator-card")
+            ], lg=3, className="mb-4 h-100"),
+        ], className="mb-4 equal-height-row"),
         
-        dbc.Row([
-            dbc.Col([
-                html.H5("Chọn Máy Bơm", className="section-title mb-3")
-            ], width="auto"),
-            dbc.Col([
-                html.A([
-                    "Xem tất cả"
-                ], href="/pump", className="view-all-link", style={"textDecoration": "none", "color": "#0d6efd", "fontWeight": "500"})
-            ], width="auto", className="ms-auto d-flex align-items-center")
-        ], className="mb-3 d-flex align-items-center"),
+        dbc.Card([
+            dbc.CardHeader([
+                html.Div([
+                    html.H6("Chọn Máy Bơm", className="card-header-title"),
+                    html.A([
+                        "Xem tất cả"
+                    ], href="/pump", className="view-all-link", style={"textDecoration": "none", "color": "#0d6efd", "fontWeight": "500"})
+                ], className="d-flex justify-content-between align-items-center")
+            ])
+        ], className="mb-3"),
         
         html.Div(id='pump-list-container', children=[]),
-        dcc.Store(id='home-pump-pagination-store', data={'current_page': 0}),
-        dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': 'Máy Bơm Nước Chính'}),
+    dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': 'Máy Bơm Nước Chính'}),
+    dcc.Store(id='pump-mode-refresh', data={'mode': None, 'ts': None}),
+        dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1),  # Run once on page load
         
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5(id='pump-detail-title', children="Chi Tiết Máy Bơm - Máy Bơm Nước Chính", className="mb-0"),
+                            html.H6(id='pump-detail-title', children="Chi Tiết Máy Bơm - Máy Bơm Nước Chính", className="card-header-title"),
                             html.Span(id='pump-detail-status', children="đang chạy", className="badge badge-running ms-2")
-                        ], style={"display": "flex", "alignItems": "center"})
+                        ], className="d-flex align-items-center")
                     ]),
                     dbc.CardBody([
-                        # First row: flow, soil moisture, humidity, temperature
                         dbc.Row([
                             dbc.Col([
                                 dbc.Card([
@@ -339,85 +357,70 @@ layout = html.Div([
                         ])
                     ])
                 ], className="details-card mb-4", style={"height": "100%"})
-            ], lg=8, className="mb-4"),
+            ], lg=9, className="mb-4"),
 
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5("Điều Khiển Máy Bơm", className="mb-0")
+                        html.H6("Điều Khiển Máy Bơm", className="card-header-title")
                     ]),
                     dbc.CardBody([
                         html.Div([
                             html.Div([
-                                html.Span("Máy bơm được chọn: ", className="text-muted"),
-                                html.Strong("", id='control-selected-pump-name')
-                            ], className="mb-3 pb-3", style={"borderBottom": "1px solid #e9ecef"}),
-                            
-                            html.H6("Trạng Thái Máy Bơm", className="mb-3"),
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Button([
-                                        html.I(className="fas fa-play me-2"),
-                                        "Bắt Đầu"
-                                    ], color='success', className="w-100", id='pump-start-btn', disabled=True)
-                                ], md=6),
-                                dbc.Col([
-                                    dbc.Button([
-                                        html.I(className="fas fa-stop me-2"),
-                                        "Dừng"
-                                    ], color='danger', outline=True, className="w-100", id='pump-stop-btn', disabled=True)
-                                ], md=6),
-                            ], className="mb-4"),
-                            
-                            html.Hr(),
-                            
+                                html.Span("Máy bơm được chọn", className="control-label text-muted"),
+                                html.Strong("", id='control-selected-pump-name', className="control-selected-name")
+                            ], className="pump-control-summary mb-3"),
+
                             html.Div([
-                                html.H6("Chế Độ Tự Động", className="mb-3"),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Span("Tắt", className="me-2")
-                                    ], width="auto"),
-                                    dbc.Col([
-                                        dbc.Checklist(
-                                            options=[{"label": "", "value": 1}],
-                                            value=[],
-                                            id='auto-mode-toggle',
-                                            switch=True,
-                                            className="toggle-switch",
-                                            inputStyle={"cursor": "not-allowed", "opacity": 0.5}
-                                        )
-                                    ], width="auto", id='auto-mode-toggle-col'),
-                                    dbc.Col([
-                                        html.Span("Bật", className="ms-2")
-                                    ], width="auto"),
-                                ], className="d-flex align-items-center mb-3"),
-                            ], className="mb-4"),
-                            
-                            html.Hr(),
-                            
+                                dbc.Button(
+                                    [html.I(className="fas fa-play me-1"), "Bật"],
+                                    color='success',
+                                    size='sm',
+                                    id='pump-start-btn',
+                                    className="pump-control-btn start-btn",
+                                    disabled=True
+                                ),
+                                dbc.Button(
+                                    [html.I(className="fas fa-stop me-1"), "Tắt"],
+                                    color='danger',
+                                    outline=True,
+                                    size='sm',
+                                    id='pump-stop-btn',
+                                    className="pump-control-btn stop-btn ms-2",
+                                    disabled=True
+                                )
+                            ], className="pump-control-actions d-flex align-items-center mb-3"),
+
                             html.Div([
-                                dbc.Button([
-                                    html.I(className="fas fa-tools me-2"),
-                                    "Vào Chế Độ Bảo Trì"
-                                ], color='warning', outline=True, className="w-100", id='maintenance-mode-btn', disabled=True)
-                            ])
+                                html.Span("Chế độ vận hành", className="control-label text-muted"),
+                                dbc.RadioItems(
+                                    id='pump-mode-select',
+                                    options=[
+                                        {'label': 'Thủ công', 'value': 0},
+                                        {'label': 'Tự động', 'value': 1},
+                                        {'label': 'Bảo trì', 'value': 2}
+                                    ],
+                                    value=None,
+                                    inline=True,
+                                    className="pump-mode-select mt-2"
+                                )
+                            ], className="pump-mode-wrapper")
                         ])
                     ])
                 ], className="operator-card", style={"height": "100%"})
-            ], lg=4, className="mb-4")
+            ], lg=3, className="mb-4")
         ]),
 
-        # Charts are shown in a separate full-width row below details/control
         dbc.Row([
             dbc.Col([
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardHeader([
-                                html.H5([
+                                html.H6([
                                     html.I(className="fas fa-chart-area me-2"),
                                     "Phân Tích Lưu Lượng"
-                                ], className="mb-0")
+                                ], className="card-header-title")
                             ]),
                             dbc.CardBody([
                                 dcc.Graph(id='selected-flow-rate-chart', config={'displayModeBar': True, 'scrollZoom': True}) ,
@@ -428,10 +431,10 @@ layout = html.Div([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardHeader([
-                                html.H5([
+                                html.H6([
                                     html.I(className="fas fa-temperature-high me-2"),
                                     "Nhiệt Độ"
-                                ], className="mb-0")
+                                ], className="card-header-title")
                             ]),
                             dbc.CardBody([
                                 dcc.Graph(id='selected-temperature-chart', config={'displayModeBar': False})
@@ -444,10 +447,10 @@ layout = html.Div([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardHeader([
-                                html.H5([
+                                html.H6([
                                     html.I(className="fas fa-droplets me-2"),
                                     "Độ Ẩm"
-                                ], className="mb-0")
+                                ], className="card-header-title")
                             ]),
                             dbc.CardBody([
                                 dcc.Graph(id='selected-humidity-chart', config={'displayModeBar': False})
@@ -457,10 +460,10 @@ layout = html.Div([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardHeader([
-                                html.H5([
+                                html.H6([
                                     html.I(className="fas fa-leaf me-2"),
                                     "Độ Ẩm Đất"
-                                ], className="mb-0")
+                                ], className="card-header-title")
                             ]),
                             dbc.CardBody([
                                 dcc.Graph(id='selected-soil-moisture-chart', config={'displayModeBar': False})
@@ -713,22 +716,27 @@ def update_active_pumps_and_sensors(n, pathname, session_modified, session):
         token = session.get('token')
     
     pumps = fetch_pump_list(token)
-    
+    if not isinstance(pumps, list):
+        pumps = []
+
     running_count = 0
-    sensor_count = 0
     for pump in pumps:
-        status = pump.get('trang_thai', False)
-        if status == True or status == 1:
-            running_count += 1
+        if isinstance(pump, dict):
+            status = pump.get('trang_thai', False)
+            if status in (True, 1):
+                running_count += 1
     
     active_pumps_str = f"{running_count}/{len(pumps)}" if pumps else "0/0"
     
     try:
         sensors_response = list_sensors(limit=1000, offset=0, token=token)
-        if isinstance(sensors_response, dict) and 'data' in sensors_response:
-            sensors = sensors_response['data']
+        if isinstance(sensors_response, dict):
+            data = sensors_response.get('data')
+            sensors = data if isinstance(data, list) else []
+        elif isinstance(sensors_response, list):
+            sensors = sensors_response
         else:
-            sensors = sensors_response if isinstance(sensors_response, list) else []
+            sensors = []
         total_sensors_str = str(len(sensors)) if sensors else "0"
     except Exception as e:
         print(f"Error fetching sensors: {e}")
@@ -746,13 +754,12 @@ def update_active_pumps_and_sensors(n, pathname, session_modified, session):
         Input('interval-component', 'n_intervals'),
         Input('url', 'pathname'),
         Input('session-store', 'modified_timestamp'),
-        Input('home-pump-pagination-store', 'data'),
     ],
     [
         State('session-store', 'data')
     ]
 )
-def update_pump_list(n, pathname, session_modified, pagination_data, session):
+def update_pump_list(n, pathname, session_modified, session):
     """Update pump list independently."""
     if pathname not in ('', '/', None):
         raise PreventUpdate
@@ -766,17 +773,14 @@ def update_pump_list(n, pathname, session_modified, pagination_data, session):
     if not pumps:
         return [html.P("Không có máy bơm nào để hiển thị", className="text-center text-muted")]
     
-    current_page = pagination_data.get('current_page', 0) if pagination_data else 0
-    items_per_page = 4
-    total_pumps = len(pumps)
-    total_pages = (total_pumps + items_per_page - 1) // items_per_page if total_pumps > 0 else 1
-    
-    start_idx = current_page * items_per_page
-    end_idx = start_idx + items_per_page
-    page_pumps = pumps[start_idx:end_idx]
+    pumps = sorted(pumps, key=lambda x: (
+        not x.get('trang_thai', False),  # True first for trang_thai
+        x.get('ma_may_bom', ''),        # Then by ma_may_bom
+        x.get('che_do', 0)              # Finally by che_do
+    ))
     
     pump_cards = []
-    for pump in page_pumps:
+    for pump in pumps:
         pump_id = pump.get('ma_may_bom')
         pump_name = pump.get('ten_may_bom', 'Không xác định')
         status = pump.get('trang_thai', False)  # True = đang chạy, False = dừng
@@ -802,8 +806,8 @@ def update_pump_list(n, pathname, session_modified, pagination_data, session):
             icon_class = 'fas fa-droplet pump-status-icon stopped'
             status_text = 'dừng'
         
-        pump_card = dbc.Col([
-            html.Div([
+        pump_card = html.Div(
+            [
                 dbc.Card([
                     dbc.CardBody([
                         html.Div([
@@ -821,92 +825,69 @@ def update_pump_list(n, pathname, session_modified, pagination_data, session):
                         ], className="pump-card-content")
                     ], className="pump-card-body")
                 ], className="pump-card")
-            ], id={'type': 'pump-card-btn', 'index': pump_id}, 
-               n_clicks=0, style={"cursor": "pointer"})
-        ], lg=3, md=6, className="mb-3")
+            ],
+            id={'type': 'pump-card-btn', 'index': pump_id},
+            n_clicks=0,
+            className="pump-card-scroll-item",
+            style={"cursor": "pointer"}
+        )
         pump_cards.append(pump_card)
     
-    pagination_controls = []
-    if total_pages > 1:
-        pagination_controls = [
-            html.Div([
-                dbc.ButtonGroup([
-                    dbc.Button(
-                        html.I(className="fas fa-chevron-left"),
-                        id='pump-prev-btn',
-                        disabled=(current_page == 0),
-                        color='primary',
-                        outline=True,
-                        size='sm',
-                        className="pump-nav-btn"
-                    ),
-                    dbc.Button(
-                        f"{current_page + 1}/{total_pages}",
-                        disabled=True,
-                        color='secondary',
-                        outline=True,
-                        size='sm',
-                        className="pump-page-indicator"
-                    ),
-                    dbc.Button(
-                        html.I(className="fas fa-chevron-right"),
-                        id='pump-next-btn',
-                        disabled=(current_page >= total_pages - 1),
-                        color='primary',
-                        outline=True,
-                        size='sm',
-                        className="pump-nav-btn"
-                    ),
-                ], className="me-2"),
-            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center", "marginTop": "1rem"})
-        ]
-    
-    pump_list_content = [
-        dbc.Row(pump_cards, className="mb-3"),
-        *pagination_controls
-    ]
+    pump_list_content = html.Div(
+        pump_cards,
+        className="pump-card-scroll-container"
+    )
     
     return pump_list_content
 
 @callback(
-    Output('home-pump-pagination-store', 'data'),
+    Output('selected-pump-store', 'data', allow_duplicate=True),
     [
-        Input('pump-next-btn', 'n_clicks'),
-        Input('pump-prev-btn', 'n_clicks'),
+        Input('initial-pump-select', 'n_intervals'),
+        Input('url', 'pathname'),
+        Input('session-store', 'modified_timestamp'),
     ],
     [
-        State('home-pump-pagination-store', 'data')
+        State('session-store', 'data')
     ],
     prevent_initial_call=True
 )
-def update_pagination(next_clicks, prev_clicks, data):
-    """Handle pagination for pump list."""
-    if not data:
-        data = {'current_page': 0}
-    
-    ctx = dash.callback_context
-    if not ctx.triggered:
+def auto_select_first_pump(n, pathname, session_modified, session):
+    """Automatically select the first pump when the page loads."""
+    if pathname not in ('', '/', None):
         raise PreventUpdate
     
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    current_page = data.get('current_page', 0)
+    token = None
+    if session and isinstance(session, dict):
+        token = session.get('token')
     
-    if button_id == 'pump-next-btn':
-        current_page += 1
-    elif button_id == 'pump-prev-btn':
-        current_page = max(0, current_page - 1)
+    pumps = fetch_pump_list(token)
+    if not pumps:
+        raise PreventUpdate
     
-    return {'current_page': current_page}
+    pumps = sorted(pumps, key=lambda x: (
+        not x.get('trang_thai', False),  # True first for trang_thai
+        x.get('ma_may_bom', ''),        # Then by ma_may_bom
+        x.get('che_do', 0)              # Finally by che_do
+    ))
+    
+    first_pump = pumps[0]
+    return {
+        'ma_may_bom': first_pump.get('ma_may_bom'),
+        'ten_may_bom': first_pump.get('ten_may_bom', 'Máy Bơm Nước Chính')
+    }
 
 @callback(
-    Output('selected-pump-store', 'data'),
+    Output('selected-pump-store', 'data', allow_duplicate=True),
     [
         Input({'type': 'pump-card-btn', 'index': dash.ALL}, 'n_clicks'),
     ],
     prevent_initial_call=True
 )
 def select_pump(n_clicks):
-    if not n_clicks or sum(n_clicks) == 0:
+    if not n_clicks:
+        raise PreventUpdate
+    if sum(n_clicks) == 0:
         raise PreventUpdate
     
     ctx = dash.callback_context
@@ -982,14 +963,43 @@ def update_pump_details(selected_pump, n, pathname, session):
         title = f"Chi Tiết Máy Bơm - {pump_name}"
         
         today = datetime.now().strftime('%Y-%m-%d')
-        response_data = get_data_by_pump(ma_may_bom=pump_id, limit=1000, offset=0, token=token)
-        
-        if isinstance(response_data, dict) and 'data' in response_data:
-            data = response_data['data']
+        df_all = fetch_sensor_data(token)
+
+        if df_all.empty:
+            empty_figure = {
+                'data': [go.Scatter(x=[], y=[], mode='lines')],
+                'layout': go.Layout(
+                    xaxis={'title': 'Thời Gian'},
+                    yaxis={'title': 'Value'},
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                )
+            }
+            return (
+                title,
+                badge_text,
+                badge_class,
+                empty_figure,  # flow rate chart
+                empty_figure,  # temperature chart
+                empty_figure,  # humidity chart
+                empty_figure,  # soil moisture chart
+                "N/A",  # flow rate value
+                "N/A",  # temperature value
+                "N/A",  # humidity value
+                "N/A",  # soil moisture value
+                "N/A",  # rain value
+                "—",    # last on time
+                "—",    # last off time
+                "—",    # run duration
+            )
+
+        str_id = str(pump_id) if pump_id is not None else None
+        if 'ma_may_bom' in df_all.columns and str_id is not None:
+            df = df_all[df_all['ma_may_bom'].astype(str) == str_id].copy()
         else:
-            data = response_data if isinstance(response_data, list) else []
-        
-        if not data:
+            df = df_all.copy()
+
+        if df.empty:
             empty_figure = {
                 'data': [go.Scatter(x=[], y=[], mode='lines')],
                 'layout': go.Layout(
@@ -1011,12 +1021,49 @@ def update_pump_details(selected_pump, n, pathname, session):
                 "N/A",
                 "N/A",
                 "N/A",
-                "N/A",  # rain
-                "—",    # last on
-                "—",    # last off
+                "N/A",
+                "—",
+                "—",
+                "—",
             )
         
-        df = pd.DataFrame.from_records(data)
+        pump_logs = get_pump_memory_logs(pump_id, limit=10, offset=0, token=token)
+        last_on_time = "—"
+        last_off_time = "—"
+        run_duration = "—"
+        
+        if isinstance(pump_logs, dict) and 'data' in pump_logs:
+            logs = pump_logs['data']
+            if logs and isinstance(logs, list):
+                logs.sort(key=lambda x: x.get('thoi_gian_tao', ''), reverse=True)
+                
+                for log in logs:
+                    status = log.get('trang_thai')
+                    time = log.get('thoi_gian_tao')
+                    if time:
+                        formatted_time = format_display_time(time)
+                        if status == True or status == 1:  # On event
+                            if last_on_time == "—":
+                                last_on_time = formatted_time
+                            if last_off_time == "—":
+                                last_off_time = formatted_time
+                
+                if len(logs) >= 2:
+                    latest = logs[0]
+                    previous = logs[1]
+                    if latest and previous and 'thoi_gian_tao' in latest and 'thoi_gian_tao' in previous:
+                        try:
+                            latest_time = datetime.fromisoformat(latest['thoi_gian_tao'].replace('Z', '+00:00'))
+                            previous_time = datetime.fromisoformat(previous['thoi_gian_tao'].replace('Z', '+00:00'))
+                            duration = latest_time - previous_time
+                            minutes = duration.total_seconds() / 60
+                            if minutes < 60:
+                                run_duration = f"{int(minutes)} phút"
+                            else:
+                                hours = minutes / 60
+                                run_duration = f"{int(hours)} giờ {int(minutes % 60)} phút"
+                        except:
+                            run_duration = "—"
         
         if 'thoi_gian_tao' in df.columns:
             df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'], errors='coerce')
@@ -1042,6 +1089,8 @@ def update_pump_details(selected_pump, n, pathname, session):
             for col in ['flow_rate', 'soil_moisture', 'temperature', 'humidity']:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+        elif 'date' in df.columns:
+            df = df.sort_values('date')
         
         flow_rate_figure = {
             'data': [
@@ -1307,14 +1356,14 @@ def update_pump_details(selected_pump, n, pathname, session):
             empty_figure,
             empty_figure,
             empty_figure,
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
-            "Lỗi",
+            "Lỗi",  # flow rate value
+            "Lỗi",  # temperature value
+            "Lỗi",  # humidity value
+            "Lỗi",  # soil moisture value
+            "Lỗi",  # rain value
+            "—",    # last on time
+            "—",    # last off time
+            "—"     # run duration
         )
 
 @callback(
@@ -1381,8 +1430,7 @@ def update_user_info(n, pathname, session_modified, session):
         Output('control-selected-pump-name', 'children'),
         Output('pump-start-btn', 'disabled'),
         Output('pump-stop-btn', 'disabled'),
-        Output('auto-mode-toggle-col', 'style'),
-        Output('maintenance-mode-btn', 'disabled'),
+        Output('pump-mode-select', 'value'),
     ],
     [
         Input('selected-pump-store', 'data'),
@@ -1391,36 +1439,40 @@ def update_user_info(n, pathname, session_modified, session):
     State('session-store', 'data')
 )
 def update_pump_control_panel(selected_pump, n_intervals, session):
-    """Update pump control panel based on selected pump."""
+    """Refresh control panel state, button availability, and mode selection."""
     if not selected_pump or not selected_pump.get('ma_may_bom'):
-        disabled_style = {"opacity": 0.5, "pointerEvents": "none"}
-        return ("Chưa chọn máy bơm", True, True, disabled_style, True)
-    
+        return ("Chưa chọn máy bơm", True, True, None)
+
     try:
         pump_id = selected_pump.get('ma_may_bom')
         token = session.get('token') if session else None
-        
+
         pump_info = get_pump(pump_id, token)
         if not pump_info:
             pump_name = selected_pump.get('ten_may_bom', 'Máy Bơm Nước Chính')
-            enabled_style = {"opacity": 1, "pointerEvents": "auto"}
-            return (pump_name, False, False, enabled_style, False)
-        
+            return (pump_name, True, True, None)
+
         pump_name = pump_info.get('ten_may_bom', 'Máy Bơm Nước Chính')
+        status = bool(pump_info.get('trang_thai', False))
         mode = pump_info.get('che_do', 0)
-        
+
+        if not isinstance(mode, int):
+            mode = 0
+
+        mode_value = mode
+
         if mode == 2:
-            disabled_style = {"opacity": 0.5, "pointerEvents": "none"}
-            return (pump_name, True, True, disabled_style, False)
-        
-        enabled_style = {"opacity": 1, "pointerEvents": "auto"}
-        return (pump_name, False, False, enabled_style, False)
-    
+            return (pump_name, True, True, mode_value)
+
+        start_disabled = status  # disable start when already running
+        stop_disabled = not status  # disable stop when already stopped
+
+        return (pump_name, start_disabled, stop_disabled, mode_value)
+
     except Exception as e:
         print(f"Error updating pump control panel: {e}")
         pump_name = selected_pump.get('ten_may_bom', 'Máy Bơm Nước Chính')
-        enabled_style = {"opacity": 1, "pointerEvents": "auto"}
-        return (pump_name, False, False, enabled_style, False)
+        return (pump_name, True, True, None)
 
 @callback(
     Output('pump-start-btn', 'n_clicks'),
@@ -1438,13 +1490,11 @@ def handle_pump_start(n_clicks, selected_pump, session):
         pump_id = selected_pump.get('ma_may_bom')
         token = session.get('token') if session else None
         
-        # Get current pump info
         pump_info = get_pump(pump_id, token)
         if not pump_info:
             print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
             return n_clicks
         
-        # Prepare payload with all required fields
         payload = {
             'ten_may_bom': pump_info.get('ten_may_bom', ''),
             'mo_ta': pump_info.get('mo_ta', ''),
@@ -1481,13 +1531,11 @@ def handle_pump_stop(n_clicks, selected_pump, session):
         pump_id = selected_pump.get('ma_may_bom')
         token = session.get('token') if session else None
         
-        # Get current pump info
         pump_info = get_pump(pump_id, token)
         if not pump_info:
             print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
             return n_clicks
         
-        # Prepare payload with all required fields
         payload = {
             'ten_may_bom': pump_info.get('ten_may_bom', ''),
             'mo_ta': pump_info.get('mo_ta', ''),
@@ -1509,31 +1557,61 @@ def handle_pump_stop(n_clicks, selected_pump, session):
     return n_clicks
 
 @callback(
-    Output('auto-mode-toggle', 'value'),
-    Input('auto-mode-toggle', 'value'),
+    Output('pump-mode-refresh', 'data'),
+    Input('pump-mode-select', 'value'),
     State('selected-pump-store', 'data'),
     State('session-store', 'data'),
+    State('pump-mode-refresh', 'data'),
     prevent_initial_call=True
 )
-def handle_auto_mode(value, selected_pump, session):
-    """Handle auto mode toggle - set che_do to 1 when enabled."""
+def handle_mode_selection(value, selected_pump, session, current_store):
+    """Persist mode changes and signal downstream updates."""
+    default_store = current_store if isinstance(current_store, dict) else {'mode': None, 'ts': None}
+
     if not selected_pump or not selected_pump.get('ma_may_bom'):
-        return []
-    
+        return default_store
+
     try:
-        pump_id = selected_pump.get('ma_may_bom')
         token = session.get('token') if session else None
-        
-        # Get current pump info
+        pump_id = selected_pump.get('ma_may_bom')
         pump_info = get_pump(pump_id, token)
         if not pump_info:
             print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
-            return value
-        
-        # Determine the new mode
-        new_mode = 1 if 1 in value else 0
-        
-        # Prepare payload with all required fields
+            return default_store
+
+        store_mode = default_store.get('mode') if isinstance(default_store, dict) else None
+
+        api_mode = pump_info.get('che_do', 0)
+        if not isinstance(api_mode, int):
+            api_mode = None
+
+        if value is None:
+            if api_mode is None:
+                if store_mode is None:
+                    return dash.no_update
+                return {'mode': None, 'ts': datetime.utcnow().isoformat()}
+            if store_mode == api_mode:
+                return dash.no_update
+            return {'mode': api_mode, 'ts': datetime.utcnow().isoformat()}
+
+        try:
+            new_mode = int(value)
+        except (ValueError, TypeError):
+            new_mode = api_mode
+
+        if new_mode is None:
+            if store_mode is None:
+                return dash.no_update
+            return {'mode': None, 'ts': datetime.utcnow().isoformat()}
+
+        if store_mode == new_mode and api_mode == new_mode:
+            return dash.no_update
+
+        if new_mode == api_mode:
+            if store_mode == new_mode:
+                return dash.no_update
+            return {'mode': new_mode, 'ts': datetime.utcnow().isoformat()}
+
         payload = {
             'ten_may_bom': pump_info.get('ten_may_bom', ''),
             'mo_ta': pump_info.get('mo_ta', ''),
@@ -1541,77 +1619,23 @@ def handle_auto_mode(value, selected_pump, session):
             'che_do': new_mode,
             'trang_thai': bool(pump_info.get('trang_thai', False))
         }
-        
-        success, message = update_pump(pump_id, payload, token=token)
-        if success:
-            if new_mode == 1:
-                print(f"✓ Máy bơm {pump_id} bật chế độ tự động thành công")
-            else:
-                print(f"✓ Máy bơm {pump_id} tắt chế độ tự động thành công")
-        else:
-            print(f"✗ Lỗi cập nhật chế độ: {message}")
-    except Exception as e:
-        print(f"Error toggling auto mode: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    return value
 
-@callback(
-    Output('maintenance-mode-btn', 'n_clicks'),
-    Input('maintenance-mode-btn', 'n_clicks'),
-    State('selected-pump-store', 'data'),
-    State('session-store', 'data'),
-    prevent_initial_call=True
-)
-def handle_maintenance_mode(n_clicks, selected_pump, session):
-    """Handle maintenance mode button click - toggle che_do 2."""
-    if not selected_pump or not selected_pump.get('ma_may_bom'):
-        return 0
-    
-    try:
-        pump_id = selected_pump.get('ma_may_bom')
-        token = session.get('token') if session else None
-        
-        # Get current pump info
-        pump_info = get_pump(pump_id, token)
-        if not pump_info:
-            print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
-            return n_clicks
-        
-        current_mode = pump_info.get('che_do', 0)
-        
-        # If already in maintenance mode, exit and switch to auto mode with status off
-        if current_mode == 2:
-            payload = {
-                'ten_may_bom': pump_info.get('ten_may_bom', ''),
-                'mo_ta': pump_info.get('mo_ta', ''),
-                'ma_iot_lk': pump_info.get('ma_iot_lk', ''),
-                'che_do': 1,  # Switch to auto mode
-                'trang_thai': False  # Turn off
-            }
-            success, message = update_pump(pump_id, payload, token=token)
-            if success:
-                print(f"✓ Máy bơm {pump_id} thoát chế độ bảo trì thành công (chuyển sang tự động, tắt)")
-            else:
-                print(f"✗ Lỗi thoát chế độ bảo trì: {message}")
-        else:
-            # Enter maintenance mode
-            payload = {
-                'ten_may_bom': pump_info.get('ten_may_bom', ''),
-                'mo_ta': pump_info.get('mo_ta', ''),
-                'ma_iot_lk': pump_info.get('ma_iot_lk', ''),
-                'che_do': 2,  # Set to maintenance mode
-                'trang_thai': bool(pump_info.get('trang_thai', False))
-            }
-            success, message = update_pump(pump_id, payload, token=token)
-            if success:
-                print(f"✓ Máy bơm {pump_id} vào chế độ bảo trì thành công")
-            else:
-                print(f"✗ Lỗi vào chế độ bảo trì: {message}")
+        if new_mode == 2:
+            payload['trang_thai'] = False
+
+        success, message = update_pump(pump_id, payload, token=token)
+        if not success:
+            print(f"✗ Lỗi cập nhật chế độ: {message}")
+            fallback_mode = pump_info.get('che_do', None)
+            fallback_mode = fallback_mode if isinstance(fallback_mode, int) else None
+            return {'mode': fallback_mode, 'ts': datetime.utcnow().isoformat()}
+
+        mode_name = {0: 'thủ công', 1: 'tự động', 2: 'bảo trì'}.get(new_mode, str(new_mode))
+        print(f"✓ Máy bơm {pump_id} chuyển sang chế độ {mode_name}")
+        return {'mode': new_mode, 'ts': datetime.utcnow().isoformat()}
+
     except Exception as e:
-        print(f"Error toggling maintenance mode: {e}")
+        print(f"Error updating pump mode: {e}")
         import traceback
         traceback.print_exc()
-    
-    return n_clicks
+        return default_store
