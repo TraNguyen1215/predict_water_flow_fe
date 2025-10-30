@@ -400,6 +400,139 @@ body {
 .card-body {
     padding: 1.25rem;
 }
+
+/* Admin dashboard styling */
+.admin-dashboard-container {
+    background: var(--bg-color);
+    min-height: calc(100vh - var(--nav-height));
+}
+
+.admin-header {
+    margin-bottom: 24px;
+}
+
+.admin-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 6px 0 0;
+    color: #0f172a;
+}
+
+.admin-subtitle {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    display: inline-block;
+}
+
+.admin-summary-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-bottom: 16px;
+}
+
+@media (min-width: 1200px) {
+    .admin-summary-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+.admin-summary-col {
+    display: flex;
+}
+
+.admin-summary-col .card {
+    border: none;
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+    background: #fff;
+    height: 100%;
+    width: 100%;
+}
+
+.admin-summary-title {
+    font-size: 0.9rem;
+    color: #64748b;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.admin-summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 6px 0 4px;
+}
+
+.admin-summary-subtitle {
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+.admin-summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    color: #1f2937;
+    font-size: 1.25rem;
+    box-shadow: none;
+}
+
+.bg-admin-primary,
+.bg-admin-success,
+.bg-admin-info,
+.bg-admin-warning,
+.bg-admin-model {
+    background: #e2e8f0;
+    color: #1f2937;
+}
+
+.admin-chart-row .card {
+    border: none;
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+}
+
+.admin-empty {
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-user-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+}
+
+.admin-user-item {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    font-size: 0.95rem;
+    color: #0f172a;
+}
+
+.admin-user-item:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 991.98px) {
+    /* .admin-dashboard-container {
+        padding: 88px 20px 40px;
+    } */
+
+    .admin-summary-value {
+        font-size: 1.6rem;
+    }
+}
 .stat-card:hover,
 .feature-card:hover {
     box-shadow: var(--shadow-sm);

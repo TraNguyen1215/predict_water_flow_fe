@@ -40,19 +40,31 @@ def load_admin_dashboard(pathname, session_data):
         total_users = 0
 
     try:
-        sensors = api_sensor.list_sensors(limit=1, offset=0, token=token) or {}
+        sensors = api_sensor.list_sensors(limit=200, offset=0, token=token) or {}
         total_sensors = sensors.get('total', 0) if isinstance(sensors, dict) else 0
     except Exception:
         total_sensors = 0
 
     try:
-        pumps = api_pump.list_pumps(limit=1, offset=0, token=token) or {}
+        sensor_types = api_sensor.get_sensor_types(token=token) or {}
+        if isinstance(sensor_types, dict):
+            sensor_type_data = sensor_types.get('data') or []
+            total_sensor_types = sensor_types.get('total') or len(sensor_type_data)
+        elif isinstance(sensor_types, list):
+            total_sensor_types = len(sensor_types)
+        else:
+            total_sensor_types = 0
+    except Exception:
+        total_sensor_types = 0
+
+    try:
+        pumps = api_pump.list_pumps(limit=200, offset=0, token=token) or {}
         total_pumps = pumps.get('total', 0) if isinstance(pumps, dict) else 0
     except Exception:
         total_pumps = 0
 
     try:
-        data = api_sensor_data.get_data_by_pump(limit=1, offset=0, token=token) or {}
+        data = api_sensor_data.get_data_by_pump(limit=500, offset=0, token=token) or {}
         total_data = data.get('total', 0) if isinstance(data, dict) else 0
     except Exception:
         total_data = 0
@@ -68,77 +80,392 @@ def load_admin_dashboard(pathname, session_data):
 
     current_user = session_data.get('username')
 
-    cards = dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng người dùng', className='card-title'), html.H3(str(total_users))])), md=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng cảm biến', className='card-title'), html.H3(str(total_sensors))])), md=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng máy bơm', className='card-title'), html.H3(str(total_pumps))])), md=3),
-        dbc.Col(dbc.Card(dbc.CardBody([html.H6('Tổng bản ghi cảm biến', className='card-title'), html.H3(str(total_data))])), md=3),
-    ], className='mb-4')
+    pump_items = []
+    if isinstance(pumps, dict):
+        pump_items = pumps.get('data') or []
+        if not total_pumps:
+            total_pumps = pumps.get('total') or len(pump_items)
+    elif isinstance(pumps, list):
+        pump_items = pumps
+        if not total_pumps:
+            total_pumps = len(pump_items)
 
-    charts_row = html.Div()
+    sensor_items = []
+    if isinstance(sensors, dict):
+        sensor_items = sensors.get('data') or []
+        if not total_sensors:
+            total_sensors = sensors.get('total') or len(sensor_items)
+    elif isinstance(sensors, list):
+        sensor_items = sensors
+        if not total_sensors:
+            total_sensors = len(sensor_items)
+
+    if not total_sensor_types:
+        inferred_type_ids = set()
+        inferred_type_names = set()
+        for item in sensor_items:
+            if not isinstance(item, dict):
+                continue
+            for key in ('ma_loai_cam_bien', 'ma_loai', 'loai_cam_bien_id', 'sensor_type_id'):
+                val = item.get(key)
+                if val is not None:
+                    inferred_type_ids.add(val)
+            for key in ('ten_loai_cam_bien', 'loai_cam_bien', 'ten_loai', 'sensor_type_name'):
+                name = item.get(key)
+                if name:
+                    inferred_type_names.add(str(name))
+        if inferred_type_ids:
+            total_sensor_types = len(inferred_type_ids)
+        elif inferred_type_names:
+            total_sensor_types = len(inferred_type_names)
+
+    sensor_records = []
+    if isinstance(data, dict):
+        sensor_records = data.get('data') or []
+        if not total_data:
+            total_data = data.get('total') or len(sensor_records)
+    elif isinstance(data, list):
+        sensor_records = data
+        if not total_data:
+            total_data = len(sensor_records)
+
+    def _is_truthy(value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            return lowered in {'true', '1', 'active', 'dang_hoat_dong', 'yes', 'running'}
+        return False
+
+    active_users_count = 0
     try:
-        df = pd.DataFrame(users) if users else pd.DataFrame()
-
-        if not df.empty:
-            if 'vai_tro' in df.columns:
-                df['role_mapped'] = df['vai_tro'].fillna('user')
-            elif 'role' in df.columns:
-                df['role_mapped'] = df['role'].fillna('user')
+        if isinstance(users, list) and users:
+            df_users = pd.DataFrame(users)
+            if 'trang_thai' in df_users.columns:
+                df_users['is_active'] = df_users['trang_thai'].apply(_is_truthy)
+            elif 'status' in df_users.columns:
+                df_users['is_active'] = df_users['status'].apply(_is_truthy)
+            elif 'is_active' in df_users.columns:
+                df_users['is_active'] = df_users['is_active'].apply(_is_truthy)
             else:
-                if 'is_admin' in df.columns:
-                    df['role_mapped'] = df['is_admin'].apply(lambda v: 'admin' if v else 'user')
-                else:
-                    df['role_mapped'] = 'user'
+                df_users['is_active'] = False
 
-            if 'trang_thai' in df.columns:
-                df['active_mapped'] = df['trang_thai'].apply(lambda v: 'active' if v in (True, 'active', 'dang_hoat_dong', 1) else 'inactive')
-            else:
-                df['active_mapped'] = 'unknown'
+            created_series = pd.Series(pd.NaT, index=df_users.index)
+            for created_col in ('thoi_gian_tao', 'created_at', 'ngay_tao'):
+                if created_col in df_users.columns:
+                    converted = pd.to_datetime(df_users[created_col], errors='coerce')
+                    if converted.notna().any():
+                        created_series = converted
+                        break
+            df_users['created_at'] = created_series
 
-            role_counts = df['role_mapped'].value_counts().rename_axis('role').reset_index(name='count')
-            fig_roles = px.pie(role_counts, names='role', values='count', title='Phân bố vai trò người dùng')
-            
-            act_counts = df['active_mapped'].value_counts().rename_axis('status').reset_index(name='count')
-            fig_active = px.bar(act_counts, x='status', y='count', title='Trạng thái hoạt động')
-
-            fig_reg = None
-            if 'thoi_gian_tao' in df.columns:
-                df['thoi_tao'] = pd.to_datetime(df['thoi_gian_tao'], errors='coerce')
-                if df['thoi_tao'].notna().any():
-                    monthly = df.dropna(subset=['thoi_tao']).set_index('thoi_tao').resample('ME').size().reset_index(name='count')
-                    if not monthly.empty:
-                        fig_reg = px.line(monthly, x='thoi_tao', y='count', markers=True, title='Người dùng đăng ký theo tháng')
-
-            left_col = html.Div([
-                dcc.Graph(figure=fig_roles, style={'height': '350px'}),
-                dcc.Graph(figure=fig_active, style={'height': '300px'})
-            ])
-
-            right_col_children = []
-            if fig_reg is not None:
-                right_col_children.append(dcc.Graph(figure=fig_reg, style={'height': '680px'}))
-            else:
-                right_col_children.append(dbc.Alert('Không có dữ liệu đăng ký để vẽ biểu đồ theo thời gian', color='secondary'))
-
-            charts_row = dbc.Row([
-                dbc.Col(left_col, md=6),
-                dbc.Col(right_col_children, md=6)
-            ], className='mb-4')
+            active_users_count = int(df_users['is_active'].sum())
         else:
-            charts_row = dbc.Alert('Không có dữ liệu người dùng để hiển thị biểu đồ.', color='info')
+            df_users = pd.DataFrame()
     except Exception:
-        charts_row = dbc.Alert('Lỗi khi tạo biểu đồ người dùng.', color='danger')
+        df_users = pd.DataFrame()
+        active_users_count = len(active_users)
 
-    activity = dbc.Row([
-        dbc.Col(dbc.Card(dbc.CardBody([
-            html.H6('Đang đăng nhập', className='card-title'),
-            html.P(current_user or 'Không có', className='mb-0')
-        ])), md=6),
-        dbc.Col(dbc.Card(dbc.CardBody([
-            html.H6('Người dùng hoạt động', className='card-title'),
-            html.Ul([html.Li(str(u)) for u in (active_users[:10] if active_users else ['Không có'])])
-        ])), md=6),
-    ], className='mb-4')
+    running_pumps = sum(1 for item in pump_items if _is_truthy(item.get('trang_thai')))
 
-    return html.Div([cards, charts_row, activity])
+    device_total = (total_sensors or len(sensor_items)) + (total_pumps or len(pump_items))
+
+    try:
+        from pages.predict_data import FORECAST_OPTIONS
+        total_models = len(FORECAST_OPTIONS)
+    except Exception:
+        total_models = 0
+
+    summary_cards = html.Div([
+        html.Div(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div([
+                        html.Div([
+                            html.Span('Người dùng hoạt động', className='admin-summary-title'),
+                            html.H3(str(active_users_count), className='admin-summary-value'),
+                            html.Span(f'Trên tổng số {total_users}', className='admin-summary-subtitle')
+                        ]),
+                        html.Div(html.I(className='fas fa-user-check'), className='admin-summary-icon bg-admin-primary')
+                    ], className='d-flex justify-content-between align-items-start')
+                ])
+            ),
+            className='admin-summary-col'
+        ),
+        html.Div(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div([
+                        html.Div([
+                            html.Span('Máy bơm đang chạy', className='admin-summary-title'),
+                            html.H3(str(running_pumps), className='admin-summary-value'),
+                            html.Span(f'Trên tổng số {total_pumps}', className='admin-summary-subtitle')
+                        ]),
+                        html.Div(html.I(className='fas fa-burn'), className='admin-summary-icon bg-admin-success')
+                    ], className='d-flex justify-content-between align-items-start')
+                ])
+            ),
+            className='admin-summary-col'
+        ),
+        html.Div(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div([
+                        html.Div([
+                            html.Span('Tổng thiết bị', className='admin-summary-title'),
+                            html.H3(str(device_total), className='admin-summary-value'),
+                            html.Span(f'{len(sensor_items)} cảm biến · {len(pump_items)} máy bơm', className='admin-summary-subtitle')
+                        ]),
+                        html.Div(html.I(className='fas fa-microchip'), className='admin-summary-icon bg-admin-info')
+                    ], className='d-flex justify-content-between align-items-start')
+                ])
+            ),
+            className='admin-summary-col'
+        ),
+        html.Div(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div([
+                        html.Div([
+                            html.Span('Tổng loại cảm biến', className='admin-summary-title'),
+                            html.H3(str(total_sensor_types), className='admin-summary-value'),
+                            html.Span('Phân loại thiết bị giám sát', className='admin-summary-subtitle')
+                        ]),
+                        html.Div(html.I(className='fas fa-layer-group'), className='admin-summary-icon bg-admin-warning')
+                    ], className='d-flex justify-content-between align-items-start')
+                ])
+            ),
+            className='admin-summary-col'
+        ),
+        html.Div(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div([
+                        html.Div([
+                            html.Span('Tổng mô hình dự báo', className='admin-summary-title'),
+                            html.H3(str(total_models), className='admin-summary-value'),
+                            html.Span('Tích hợp AI & dự báo', className='admin-summary-subtitle')
+                        ]),
+                        html.Div(html.I(className='fas fa-robot'), className='admin-summary-icon bg-admin-model')
+                    ], className='d-flex justify-content-between align-items-start')
+                ])
+            ),
+            className='admin-summary-col'
+        )
+    ], className='admin-summary-grid')
+
+    def _style_figure(fig):
+        if fig is None:
+            return None
+        fig.update_layout(
+            margin=dict(l=20, r=20, t=60, b=20),
+            paper_bgcolor='#ffffff',
+            plot_bgcolor='#f8fafc',
+            font=dict(color='#0f172a'),
+            legend=dict(orientation='h', y=-0.25)
+        )
+        fig.update_xaxes(showgrid=True, gridcolor='rgba(148, 163, 184, 0.2)')
+        fig.update_yaxes(showgrid=True, gridcolor='rgba(148, 163, 184, 0.2)')
+        return fig
+
+    registration_fig = None
+    activity_fig = None
+    try:
+        if not df_users.empty and df_users['created_at'].notna().any():
+            monthly = (
+                df_users.dropna(subset=['created_at'])
+                .assign(month=lambda d: d['created_at'].dt.to_period('M').dt.to_timestamp())
+                .groupby('month')
+                .size()
+                .reset_index(name='Số người đăng ký')
+            )
+            if not monthly.empty:
+                registration_fig = px.line(
+                    monthly,
+                    x='month',
+                    y='Số người đăng ký',
+                    markers=True,
+                    title='Lượt đăng ký người dùng theo tháng'
+                )
+
+            monthly_activity = (
+                df_users.dropna(subset=['created_at'])
+                .assign(month=lambda d: d['created_at'].dt.to_period('M').dt.to_timestamp())
+                .groupby('month')
+                .agg(total=('is_active', 'count'), active=('is_active', 'sum'))
+                .reset_index()
+            )
+            if not monthly_activity.empty:
+                monthly_activity['inactive'] = monthly_activity['total'] - monthly_activity['active']
+                activity_long = monthly_activity.melt(
+                    id_vars='month',
+                    value_vars=['active', 'inactive'],
+                    var_name='Trạng thái',
+                    value_name='Số lượng'
+                )
+                activity_long['Trạng thái'] = activity_long['Trạng thái'].map({'active': 'Hoạt động', 'inactive': 'Không hoạt động'})
+                activity_fig = px.bar(
+                    activity_long,
+                    x='month',
+                    y='Số lượng',
+                    color='Trạng thái',
+                    barmode='group',
+                    title='Người dùng hoạt động theo tháng'
+                )
+    except Exception:
+        registration_fig = None
+        activity_fig = None
+
+    sensor_df = pd.DataFrame(sensor_records) if sensor_records else pd.DataFrame()
+    sensor_fig = None
+    pump_activity_fig = None
+
+    if not sensor_df.empty:
+        timestamp_col = None
+        for col in ('thoi_gian_cap_nhat', 'thoi_gian', 'thoi_gian_tao', 'timestamp', 'created_at'):
+            if col in sensor_df.columns:
+                converted = pd.to_datetime(sensor_df[col], errors='coerce')
+                if converted.notna().any():
+                    sensor_df['timestamp'] = converted
+                    timestamp_col = 'timestamp'
+                    break
+        if timestamp_col is None and 'ngay' in sensor_df.columns:
+            converted = pd.to_datetime(sensor_df['ngay'], errors='coerce')
+            if converted.notna().any():
+                sensor_df['timestamp'] = converted
+                timestamp_col = 'timestamp'
+
+        if timestamp_col:
+            sensor_df = sensor_df.dropna(subset=['timestamp']).sort_values('timestamp')
+
+            if not sensor_df.empty:
+                try:
+                    sensor_df['is_running'] = sensor_df.get(
+                        'luu_luong_nuoc',
+                        pd.Series([0] * len(sensor_df), index=sensor_df.index)
+                    ).apply(lambda v: float(v or 0) > 0)
+                except Exception:
+                    sensor_df['is_running'] = False
+
+                pump_group = sensor_df.groupby(sensor_df['timestamp'].dt.floor('4H')).agg(
+                    running=('is_running', 'sum'),
+                    total=('is_running', 'count')
+                ).reset_index()
+
+                if not pump_group.empty:
+                    pump_group['stopped'] = pump_group['total'] - pump_group['running']
+                    pump_long = pump_group.melt(
+                        id_vars='timestamp',
+                        value_vars=['running', 'stopped'],
+                        var_name='Trạng thái',
+                        value_name='Số lần'
+                    )
+                    pump_long['Trạng thái'] = pump_long['Trạng thái'].map({'running': 'Đang chạy', 'stopped': 'Đã dừng'})
+                    pump_activity_fig = px.bar(
+                        pump_long,
+                        x='timestamp',
+                        y='Số lần',
+                        color='Trạng thái',
+                        barmode='group',
+                        title='Hoạt động máy bơm theo thời gian'
+                    )
+
+                value_columns = {
+                    'luu_luong_nuoc': 'Lưu lượng (L/phút)',
+                    'nhiet_do': 'Nhiệt độ (°C)',
+                    'do_am_dat': 'Áp suất (bar)',
+                    'do_am': 'Độ ẩm (%)'
+                }
+                available_cols = [col for col in value_columns if col in sensor_df.columns]
+
+                if available_cols:
+                    sensor_values = sensor_df[['timestamp'] + available_cols]
+                    sensor_long = sensor_values.melt(
+                        id_vars='timestamp',
+                        value_vars=available_cols,
+                        var_name='Chỉ số',
+                        value_name='Giá trị'
+                    )
+                    sensor_long['Chỉ số'] = sensor_long['Chỉ số'].map(value_columns)
+                    sensor_long = sensor_long.dropna(subset=['Giá trị'])
+                    if not sensor_long.empty:
+                        sensor_fig = px.line(
+                            sensor_long,
+                            x='timestamp',
+                            y='Giá trị',
+                            color='Chỉ số',
+                            markers=True,
+                            title='Giá trị cảm biến theo thời gian'
+                        )
+
+    registration_fig = _style_figure(registration_fig)
+    activity_fig = _style_figure(activity_fig)
+    pump_activity_fig = _style_figure(pump_activity_fig)
+    sensor_fig = _style_figure(sensor_fig)
+
+    def _graph_or_alert(fig, message):
+        if fig is not None:
+            return dcc.Graph(figure=fig, config={'displayModeBar': False})
+        return html.Div(className='admin-empty', children=dbc.Alert(message, color='secondary', className='mb-0'))
+
+    charts_top = dbc.Row([
+        dbc.Col(
+            dbc.Card(dbc.CardBody([_graph_or_alert(registration_fig, 'Không có dữ liệu đăng ký.')])),
+            md=12, lg=6
+        ),
+        dbc.Col(
+            dbc.Card(dbc.CardBody([_graph_or_alert(activity_fig, 'Không có dữ liệu hoạt động.') ])),
+            md=12, lg=6
+        )
+    ], className='admin-chart-row g-3 mt-1')
+
+    charts_bottom = dbc.Row([
+        dbc.Col(
+            dbc.Card(dbc.CardBody([_graph_or_alert(pump_activity_fig, 'Không có dữ liệu hoạt động máy bơm.')])),
+            md=12, lg=6
+        ),
+        dbc.Col(
+            dbc.Card(dbc.CardBody([_graph_or_alert(sensor_fig, 'Không có dữ liệu cảm biến.')])),
+            md=12, lg=6
+        )
+    ], className='admin-chart-row g-3 mt-1')
+
+    active_user_list = active_users[:8] if active_users else []
+
+    footer_cards = dbc.Row([
+        dbc.Col(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Span('Đang đăng nhập', className='admin-summary-title'),
+                    html.H4(current_user or 'Không có', className='admin-summary-value mt-2')
+                ])
+            ), md=12, lg=4
+        ),
+        dbc.Col(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Span('Người dùng hoạt động gần đây', className='admin-summary-title'),
+                    html.Ul([
+                        html.Li(user, className='admin-user-item')
+                        for user in active_user_list
+                    ] or [html.Li('Không có dữ liệu', className='admin-user-item')], className='admin-user-list')
+                ])
+            ), md=12, lg=8
+        )
+    ], className='admin-chart-row g-3 mt-1')
+
+    header = html.Div([
+        html.Span('Quản lý hệ thống máy bơm và thiết bị cảm biến IoT', className='admin-subtitle'),
+        html.H2('Tổng quan', className='admin-title')
+    ], className='admin-header')
+
+    return dbc.Container([
+        header,
+        summary_cards,
+        charts_top,
+        charts_bottom,
+        footer_cards
+    ], fluid=True, className='admin-dashboard-container')
 
