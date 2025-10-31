@@ -18,7 +18,6 @@ def list_users(token: Optional[str] = None, params: Dict[str, Any] = None) -> Li
         resp = requests.get(_url('nguoi-dung'), timeout=5, headers=headers, params=params)
         if resp.status_code == 200 and resp.content:
             data = resp.json()
-            # Nếu API trả về {"data": [...]}
             if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
                 return data['data']
             if isinstance(data, list):

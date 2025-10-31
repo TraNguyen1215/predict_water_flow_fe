@@ -36,6 +36,17 @@ layout = html.Div([
 
     dcc.Loading(html.Div(id='admin-users-dashboard'), type='default'),
 
+    dbc.Toast(
+        id='admin-users-toast',
+        header='Thông báo',
+        is_open=False,
+        dismissable=True,
+        duration=3500,
+        icon='primary',
+        children='',
+        style={'position': 'fixed', 'top': '80px', 'right': '24px', 'zIndex': 2100}
+    ),
+
     dbc.Modal([
         dbc.ModalHeader(html.H5(id='modal-title-users')),
         dbc.ModalBody([
@@ -75,7 +86,7 @@ layout = html.Div([
             dbc.Button('Xóa', id='confirm-delete-btn-users', color='danger'),
             dbc.Button('Hủy', id='cancel-delete-btn-users', className='ms-2')
         ])
-    ], id='delete-modal-users', is_open=False)
+    ], id='delete-modal-users', is_open=False, style = {"marginTop":"350px"})
 
 ], className='page-container')
 
@@ -155,9 +166,8 @@ def render_users_dashboard(users, page_state):
 
     for idx, user in enumerate(users, start=1):
         ten_dang_nhap = user.get('ten_dang_nhap')
-        username = ten_dang_nhap or _extract_first(user, ['username', 'ma_nguoi_dung', 'email'], f'U{idx:03d}')
+        username = ten_dang_nhap or _extract_first(user, ['username', 'ma_nguoi_dung'], f'U{idx:03d}')
         fullname = user.get('ho_ten') or _extract_first(user, ['full_name', 'ten'])
-        email = _extract_first(user, ['email', 'thu_dien_tu'], '')
         phone = user.get('so_dien_thoai') or _extract_first(user, ['phone'])
         address = user.get('dia_chi') or _extract_first(user, ['address'])
         created_raw = user.get('thoi_gian_tao') or _extract_first(user, ['created_at', 'ngay_tao', 'created'], None)
@@ -166,8 +176,8 @@ def render_users_dashboard(users, page_state):
         is_admin = _coerce_bool(user.get('quan_tri_vien'), default=False)
         role_label = 'Quản trị viên' if is_admin else 'Người dùng'
         pumps_total = _extract_first(user, ['tong_may_bom'], 0)
-        pumps_running = _extract_first(user, ['may_bom_dang_chay'], 0)
-        sensors_total = _extract_first(user, ['tong_cam_bien'], 0)
+        pumps_running = _extract_first(user, ['may_bom_dang_chay', 'pump_running', 'dang_chay'], 0)
+        sensors_total = _extract_first(user, ['tong_cam_bien',], 0)
         devices_total = _extract_first(user, ['tong_thiet_bi'], None)
         last_login_raw = _extract_first(user, ['dang_nhap_lan_cuoi'], None)
         last_login = _parse_datetime(last_login_raw)
@@ -197,16 +207,15 @@ def render_users_dashboard(users, page_state):
 
         if created_at:
             if created_at >= month_start_dt:
-                monthly_registrations.append({'name': fullname or username, 'email': email, 'date': created_at, 'active': active})
+                monthly_registrations.append({'name': fullname or username, 'date': created_at, 'active': active})
             if created_at >= week_start_dt:
-                weekly_registrations.append({'name': fullname or username, 'email': email, 'date': created_at, 'active': active})
+                weekly_registrations.append({'name': fullname or username, 'date': created_at, 'active': active})
 
         processed_rows.append({
             'index': idx,
             'username': username,
             'ten_dang_nhap': ten_dang_nhap,
             'fullname': fullname,
-            'email': email,
             'phone': phone,
             'address': address,
             'active': active,
@@ -254,7 +263,7 @@ def render_users_dashboard(users, page_state):
     summary_cards = html.Div([
         build_summary_card('Tổng người dùng', total_users, 'Trong hệ thống', 'fas fa-users'),
         build_summary_card('Đang hoạt động', active_count, f"{active_ratio:.0f}% tổng số", 'fas fa-user-check',
-                           dbc.Progress(value=active_ratio, max=100, className='user-progress', color='dark')),
+                        dbc.Progress(value=active_ratio, max=100, className='user-progress', color='dark')),
         build_summary_card('Không hoạt động', inactive_count, f"{inactive_count} người dùng", 'fas fa-user-slash'),
         build_summary_card('Đăng ký mới', monthly_total, 'Tháng này', 'fas fa-user-plus')
     ], className='admin-summary-grid user-summary-grid')
@@ -278,14 +287,11 @@ def render_users_dashboard(users, page_state):
                 list_class += ' user-card-list-scroll'
             body = html.Div([
                 html.Div([
-                    html.Div([
-                        html.Strong(entry['name']),
-                        html.Span(entry['email'], className='user-card-email')
-                    ], className='user-card-text'),
+                    html.Div(html.Strong(entry['name']), className='user-card-text'),
                     html.Div([
                         html.Span(format_date(entry['date']), className='user-card-date'),
                         html.Span('Hoạt động' if entry['active'] else 'Không hoạt động',
-                                  className=f"user-status-badge {'active' if entry['active'] else 'inactive'}")
+                                className=f"user-status-badge {'active' if entry['active'] else 'inactive'}")
                     ], className='user-card-meta')
                 ], className='user-card-item')
                 for entry in items
@@ -446,15 +452,15 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
         if btn.startswith('{') and 'edit-user-users' in btn:
             import json
             obj = json.loads(btn)
-            identifier = obj.get('index')
+            identifier = obj.get('username')
             u = None
             for candidate in users or []:
-                primary_key = candidate.get('ten_dang_nhap')
+                primary_key = candidate.get('index')
                 if primary_key is not None and str(primary_key) == str(identifier):
                     u = candidate
                     break
             if u is None:
-                u = next((x for x in (users or []) if (x.get('username') == identifier or x.get('ma_nguoi_dung') == identifier)), None)
+                u = next((x for x in (users or []) if (x.get('username') == identifier)), None)
             if not u:
                 return False, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -464,7 +470,7 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
             dia_chi = u.get('dia_chi') if u.get('dia_chi') not in (None, '') else ''
             quan_tri_vien = _coerce_bool(u.get('quan_tri_vien'), default=False)
             trang_thai = _coerce_bool(u.get('trang_thai'), default=True)
-
+            
             return True, 'Chỉnh sửa người dùng', ten_dang_nhap, ten_dang_nhap, ho_ten, so_dien_thoai, dia_chi, quan_tri_vien, trang_thai
     except Exception:
         pass
@@ -473,7 +479,10 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
 
 
 @callback(
-    Output('admin-users-page-store', 'data', allow_duplicate=True),
+    [Output('admin-users-page-store', 'data', allow_duplicate=True), Output('user-modal-users', 'is_open', allow_duplicate=True),
+     Output('delete-modal-users', 'is_open', allow_duplicate=True), Output('admin-current-username-users', 'data', allow_duplicate=True),
+     Output('admin-users-toast', 'children', allow_duplicate=True), Output('admin-users-toast', 'icon', allow_duplicate=True),
+     Output('admin-users-toast', 'is_open', allow_duplicate=True)],
     [Input('save-user-btn-users', 'n_clicks'), Input('confirm-delete-btn-users', 'n_clicks')],
     [State('admin-current-username-users', 'data'), State('user-username-users', 'value'), State('user-fullname-users', 'value'),
      State('user-phone-users', 'value'), State('user-address-users', 'value'),
@@ -503,17 +512,28 @@ def handle_save_or_delete_users(save_click, del_click, current_username, usernam
 
         target_username = current_username or username
 
-        api_user.update_user(target_username, data, token=token)
+        success, message = api_user.update_user(target_username, data, token=token)
+        toast_message = message or ('Cập nhật người dùng thành công' if success else 'Cập nhật người dùng thất bại')
+        toast_icon = 'success' if success else 'danger'
 
-        users = api_user.list_users(token=token)
-        return users or []
+        if success:
+            users = api_user.list_users(token=token)
+            return users or [], False, False, None, toast_message, toast_icon, True
+
+        return dash.no_update, True, False, current_username, toast_message, toast_icon, True
 
     if action == 'confirm-delete-btn-users':
         if not current_username:
             raise dash.exceptions.PreventUpdate
-        api_user.delete_user(current_username, token=token)
-        users = api_user.list_users(token=token)
-        return users or []
+        success, message = api_user.delete_user(current_username, token=token)
+        toast_message = message or ('Xóa người dùng thành công' if success else 'Xóa người dùng thất bại')
+        toast_icon = 'success' if success else 'danger'
+
+        if success:
+            users = api_user.list_users(token=token)
+            return users or [], False, False, None, toast_message, toast_icon, True
+
+        return dash.no_update, False, True, current_username, toast_message, toast_icon, True
 
     raise dash.exceptions.PreventUpdate
 
@@ -543,7 +563,7 @@ def handle_modals_users(cancel_user, cancel_delete, delete_clicks, current, user
         if btn.startswith('{') and 'delete-user-users' in btn:
             import json
             obj = json.loads(btn)
-            username = obj.get('index')
+            username = obj.get('ten_dang_nhap') or obj.get('index')
             return dash.no_update, True, username, f"Bạn có chắc chắn muốn xóa người dùng '{username}'?"
     except Exception:
         pass

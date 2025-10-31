@@ -658,11 +658,6 @@ body {
     gap: 0.25rem;
 }
 
-.user-card-email {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
 .user-card-meta {
     display: flex;
     flex-direction: column;
