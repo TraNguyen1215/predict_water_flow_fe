@@ -9,6 +9,11 @@ from api import sensor_data as api_sensor_data
 import pandas as pd
 import plotly.express as px
 
+PRIMARY_BLUE = '#0358a3'
+BLUE_SCALE = ['#0358a3', '#1d4ed8', '#2563eb', '#38bdf8', '#60a5fa']
+USER_STATUS_BLUE_MAP = {'Hoạt động': '#0358a3', 'Không hoạt động': '#60a5fa'}
+PUMP_STATUS_BLUE_MAP = {'Đang chạy': '#0358a3', 'Đã dừng': '#60a5fa'}
+
 
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
@@ -259,12 +264,28 @@ def load_admin_dashboard(pathname, session_data):
     def _style_figure(fig):
         if fig is None:
             return None
+        legend_text = 'Chú thích'
+        try:
+            existing_title = fig.layout.legend.title.text
+            if existing_title:
+                legend_text = existing_title
+        except Exception:
+            pass
         fig.update_layout(
             margin=dict(l=20, r=20, t=60, b=20),
             paper_bgcolor='#ffffff',
             plot_bgcolor='#f8fafc',
             font=dict(color='#0f172a'),
-            legend=dict(orientation='h', y=-0.25)
+            legend=dict(
+                title=dict(text=legend_text, font=dict(size=12, color='#0f172a')),
+                orientation='h',
+                y=-0.3,
+                x=0,
+                bgcolor='#ffffff',
+                bordercolor='rgba(15, 23, 42, 0.12)',
+                borderwidth=1,
+                font=dict(size=12, color='#0f172a')
+            )
         )
         fig.update_xaxes(showgrid=True, gridcolor='rgba(148, 163, 184, 0.2)')
         fig.update_yaxes(showgrid=True, gridcolor='rgba(148, 163, 184, 0.2)')
@@ -287,8 +308,11 @@ def load_admin_dashboard(pathname, session_data):
                     x='month',
                     y='Số người đăng ký',
                     markers=True,
-                    title='Lượt đăng ký người dùng theo tháng'
+                    title='Lượt đăng ký người dùng theo tháng',
+                    color_discrete_sequence=[PRIMARY_BLUE],
+                    labels={'month': 'Thời gian', 'Số người đăng ký': 'Số người đăng ký'}
                 )
+                registration_fig.update_traces(line=dict(color=PRIMARY_BLUE), marker=dict(color=PRIMARY_BLUE))
 
             monthly_activity = (
                 df_users.dropna(subset=['created_at'])
@@ -311,9 +335,12 @@ def load_admin_dashboard(pathname, session_data):
                     x='month',
                     y='Số lượng',
                     color='Trạng thái',
-                    barmode='group',
-                    title='Người dùng hoạt động theo tháng'
+                    barmode='stack',
+                    title='Người dùng hoạt động theo tháng',
+                    color_discrete_map=USER_STATUS_BLUE_MAP,
+                    labels={'month': 'Thời gian', 'Số lượng': 'Số lượng', 'Trạng thái': 'Trạng thái'}
                 )
+                activity_fig.update_layout(legend=dict(title=dict(text='Trạng thái')))
     except Exception:
         registration_fig = None
         activity_fig = None
@@ -368,8 +395,10 @@ def load_admin_dashboard(pathname, session_data):
                         x='timestamp',
                         y='Số lần',
                         color='Trạng thái',
-                        barmode='group',
-                        title='Hoạt động máy bơm theo thời gian'
+                        barmode='stack',
+                        title='Hoạt động máy bơm theo thời gian',
+                        color_discrete_map=PUMP_STATUS_BLUE_MAP,
+                        labels={'timestamp': 'Thời gian', 'Số lần': 'Số lần', 'Trạng thái': 'Trạng thái'}
                     )
 
                 value_columns = {
@@ -397,13 +426,27 @@ def load_admin_dashboard(pathname, session_data):
                             y='Giá trị',
                             color='Chỉ số',
                             markers=True,
-                            title='Giá trị cảm biến theo thời gian'
+                            title='Giá trị cảm biến theo thời gian',
+                            color_discrete_sequence=BLUE_SCALE,
+                            labels={'timestamp': 'Thời gian', 'Giá trị': 'Giá trị', 'Chỉ số': 'Chỉ số'}
                         )
+                        sensor_fig.update_layout(legend=dict(title=dict(text='Chỉ số cảm biến')))
 
     registration_fig = _style_figure(registration_fig)
+    if registration_fig is not None:
+        registration_fig.update_xaxes(tickformat='%m/%Y')
+
     activity_fig = _style_figure(activity_fig)
+    if activity_fig is not None:
+        activity_fig.update_xaxes(tickformat='%m/%Y')
+
     pump_activity_fig = _style_figure(pump_activity_fig)
+    if pump_activity_fig is not None:
+        pump_activity_fig.update_xaxes(tickformat='%d/%m %H:%M')
+
     sensor_fig = _style_figure(sensor_fig)
+    if sensor_fig is not None:
+        sensor_fig.update_xaxes(tickformat='%d/%m %H:%M')
 
     def _graph_or_alert(fig, message):
         if fig is not None:
@@ -432,40 +475,9 @@ def load_admin_dashboard(pathname, session_data):
         )
     ], className='admin-chart-row g-3 mt-1')
 
-    active_user_list = active_users[:8] if active_users else []
-
-    footer_cards = dbc.Row([
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Span('Đang đăng nhập', className='admin-summary-title'),
-                    html.H4(current_user or 'Không có', className='admin-summary-value mt-2')
-                ])
-            ), md=12, lg=4
-        ),
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Span('Người dùng hoạt động gần đây', className='admin-summary-title'),
-                    html.Ul([
-                        html.Li(user, className='admin-user-item')
-                        for user in active_user_list
-                    ] or [html.Li('Không có dữ liệu', className='admin-user-item')], className='admin-user-list')
-                ])
-            ), md=12, lg=8
-        )
-    ], className='admin-chart-row g-3 mt-1')
-
-    header = html.Div([
-        html.Span('Quản lý hệ thống máy bơm và thiết bị cảm biến IoT', className='admin-subtitle'),
-        html.H2('Tổng quan', className='admin-title')
-    ], className='admin-header')
-
     return dbc.Container([
-        header,
         summary_cards,
         charts_top,
-        charts_bottom,
-        footer_cards
+        charts_bottom
     ], fluid=True, className='admin-dashboard-container')
 
