@@ -61,6 +61,8 @@ layout = html.Div([
                                         html.Span('Kéo thả hoặc bấm để chọn tệp firmware (.bin)', className='small text-muted')
                                     ])
                                 ),
+                                html.Small('Hoặc:', className='text-muted d-block mt-2'),
+                                dbc.Button('Tải firmware từ assets', id='esp-load-from-assets-btn', color='info', outline=True, size='sm', className='mt-2 mb-2'),
                                 html.Small('Sau khi chọn tệp, hãy kết nối thiết bị rồi bấm "Bắt đầu nạp".', className='text-muted d-block mt-2'),
                                 html.Div(id='esp-firmware-selected', className='text-muted small mt-1')
                             ], className='mt-3'),
@@ -123,7 +125,19 @@ layout = html.Div([
             ])
         ], className='mt-4')
     ], fluid=True, className='esp-flash-container'),
-    html.Script(src='https://unpkg.com/esptool-js@0.4.10/bundle.js', defer=True),
-    html.Script(src='/assets/js/esp_flasher.js', defer=True),
-    html.Script("(function(){ function attempt(i){ if (window.initializeEspFlasher){ window.initializeEspFlasher(); } else if (i < 40){ setTimeout(function(){ attempt(i+1); }, 200); } } attempt(0); })();", type='text/javascript')
+    html.Script(src='/assets/js/esp_flasher.js', type='module', defer=True),
+    html.Script("""
+    (function(){
+      function attempt(i){
+        if (window.initializeEspFlasher){
+          window.initializeEspFlasher();
+        } else if (i < 50){
+          setTimeout(function(){ attempt(i+1); }, 200);
+        } else {
+          console.error('Không thể khởi tạo ESP Flasher sau 50 lần thử');
+        }
+      }
+      attempt(0);
+    })();
+    """, type='text/javascript')
 ], className='page-container')

@@ -2,7 +2,6 @@
   if (window.initializeEspFlasher) {
     return;
   }
-
   function formatError(error) {
     if (!error) {
       return "Không rõ nguyên nhân";
@@ -32,6 +31,7 @@
       firmwareName: "",
       isConnecting: false,
       isFlashing: false,
+      shouldAutoFlash: true,
     };
 
     const maxAttempts = 80;
@@ -229,14 +229,7 @@
           );
           console.warn("navigator.serial hiện tại:", navigator.serial);
           return;
-        }
-        if (!window.esptool) {
-          setStatus(
-            "Không tải được thư viện esptool-js. Vui lòng tải lại trang.",
-            "danger"
-          );
-          return;
-        }
+        } // Wait for esptool-js library to load
 
         state.isConnecting = true;
         updateButtons();
@@ -277,7 +270,19 @@
             "ESP";
           setStatus(`Đã kết nối với ${chipName}.`, "success");
           writeLog("Thiết bị đã sẵn sàng.");
-          updateButtons();
+          updateButtons(); // Auto-flash if firmware is loaded and shouldAutoFlash is true
+
+          if (
+            state.firmware &&
+            state.firmware.length > 0 &&
+            state.shouldAutoFlash
+          ) {
+            writeLog("Bắt đầu nạp firmware tự động...");
+            state.shouldAutoFlash = false; // Prevent multiple auto-flash attempts
+            setTimeout(() => {
+              flashFirmware();
+            }, 500);
+          }
         } catch (err) {
           const errorMessage = formatError(err);
           writeLog(`Không thể kết nối: ${errorMessage}`);
@@ -295,6 +300,52 @@
         } finally {
           state.isConnecting = false;
           updateButtons();
+        }
+      }
+
+      async function loadFirmwareFromAssets(binFileName) {
+        try {
+          writeLog(`Đang tải firmware từ assets: ${binFileName}...`);
+          setStatus("Đang tải firmware từ assets...", "info");
+
+          const response = await fetch(`/assets/${binFileName}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          state.firmware = new Uint8Array(arrayBuffer);
+          state.firmwareName = binFileName;
+
+          writeLog(
+            `Đã tải firmware: ${binFileName} (${state.firmware.length} byte).`
+          );
+          setStatus(
+            'Firmware đã sẵn sàng. Kết nối thiết bị rồi bấm "Bắt đầu nạp".',
+            "info"
+          );
+          resetProgress();
+          updateButtons();
+
+          const selectedLabel = getSelectedLabel();
+          if (selectedLabel) {
+            selectedLabel.textContent = `Đã tải: ${binFileName}`;
+          }
+        } catch (err) {
+          const errorMessage = formatError(err);
+          state.firmware = null;
+          state.firmwareName = "";
+          setStatus(
+            `Không thể tải firmware từ assets: ${errorMessage}`,
+            "danger"
+          );
+          writeLog(`Không thể tải firmware từ assets: ${errorMessage}`);
+          updateButtons();
+
+          const selectedLabel = getSelectedLabel();
+          if (selectedLabel) {
+            selectedLabel.textContent = "";
+          }
         }
       }
 
@@ -474,6 +525,11 @@
           handleDisconnectClick();
           return;
         }
+        if (target.closest && target.closest("#esp-load-from-assets-btn")) {
+          event.preventDefault();
+          loadFirmwareFromAssets("sketch_oct15a.ino.bin");
+          return;
+        }
         if (target.closest && target.closest("#esp-flash-btn")) {
           event.preventDefault();
           flashFirmware();
@@ -489,6 +545,28 @@
         ) {
           handleFileSelected(event);
         }
+      } // Add DOMNodeInserted listener to detect when dcc.Upload creates input element
+
+      if (uploadWrapper) {
+        uploadWrapper.addEventListener(
+          "DOMNodeInserted",
+          function checkForFileInput() {
+            const fileInput = uploadWrapper.querySelector("input[type='file']");
+            if (fileInput && !fileInput.__changeListenerAttached) {
+              fileInput.__changeListenerAttached = true;
+              fileInput.addEventListener("change", handleFileSelected);
+            }
+          },
+          true
+        ); // Check immediately in case input already exists
+
+        setTimeout(function () {
+          const fileInput = uploadWrapper.querySelector("input[type='file']");
+          if (fileInput && !fileInput.__changeListenerAttached) {
+            fileInput.__changeListenerAttached = true;
+            fileInput.addEventListener("change", handleFileSelected);
+          }
+        }, 100);
       }
 
       root.addEventListener("click", handleRootClick);
@@ -503,7 +581,37 @@
       const initialLog = getLogEl();
       if (initialLog) {
         initialLog.textContent = "";
-      }
+      } // Auto-load firmware from assets and auto-connect on initialization
+
+      const autoInitialize = async () => {
+        // Wait for esptool-js library to load
+        let libWaitAttempts = 0;
+        while (!window.esptool && libWaitAttempts < 100) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          libWaitAttempts++;
+        }
+
+        if (!window.esptool) {
+          writeLog("Lỗi: Không thể tải thư viện esptool-js.");
+          setStatus(
+            "Không thể tải thư viện esptool-js. Vui lòng tải lại trang.",
+            "danger"
+          );
+          return;
+        }
+
+        try {
+          writeLog("Đang tải firmware từ assets tự động...");
+          await loadFirmwareFromAssets("sketch_oct15a.ino.bin"); // Auto-connect after firmware is loaded
+
+          writeLog("Đang kết nối thiết bị tự động...");
+          await connectDevice();
+        } catch (err) {
+          writeLog(`Lỗi khi khởi tạo: ${formatError(err)}`);
+        }
+      };
+
+      setTimeout(autoInitialize, 500);
 
       if (
         navigator.serial &&
@@ -568,3 +676,11 @@
     trySetup();
   };
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof window.initializeEspFlasher === "function") {
+    window.initializeEspFlasher();
+  } else {
+    console.error("initializeEspFlasher chưa được định nghĩa!");
+  }
+});

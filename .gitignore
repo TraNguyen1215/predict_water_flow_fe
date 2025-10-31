@@ -3,3 +3,6 @@
 .vscode/
 .env
 .tethysls/
+node_modules/
+package-lock.json
+package.json
