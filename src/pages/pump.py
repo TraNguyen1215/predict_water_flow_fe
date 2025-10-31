@@ -871,3 +871,28 @@ def handle_pump_pagination_click(page_clicks, prev_clicks, next_clicks, current,
         data['page'] = nextp
         return data
     raise PreventUpdate
+
+
+@callback(
+    Output('url', 'pathname', allow_duplicate=True),
+    Input({'type': 'view-pump', 'index': dash.ALL}, 'n_clicks'),
+    prevent_initial_call=True
+)
+def view_pump_detail(n_clicks):
+    """Chuyển sang trang chi tiết máy bơm khi bấm nút Xem"""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    
+    try:
+        trigger_id = ctx.triggered[0]['prop_id']
+        import json
+        obj = json.loads(trigger_id.split('.')[0])
+        pump_id = obj.get('index')
+        if pump_id:
+            return f'/pump/{pump_id}'
+    except Exception:
+        pass
+    
+    raise PreventUpdate
+
