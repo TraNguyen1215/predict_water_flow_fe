@@ -120,7 +120,7 @@ layout = html.Div([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        html.H3("4", id="total-pumps", className="stats-number"),
+                        html.H3("0", id="total-pumps", className="stats-number"),
                         html.P("Tổng số máy bơm", className="mb-0"),
                         html.Small("Công suất hệ thống", className="text-muted")
                     ])
@@ -689,7 +689,7 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
             body = html.Div('Không có nhật ký của máy bơm ' + str(pump_name if pump_name else ma_id) + ' vào ngày đã chọn.', className='text-center')
 
     if not rows:
-        body = html.Div('Không có nhật ký của máy bơm ' + str(pump_name if pump_name else ma_id) + '.', className='text-center')
+        body = html.Div('Không có nhật ký của máy bơm' + str(pump_name if pump_name else ma_id) + '.', className='text-center')
     else:
         table = dbc.Table([
             html.Thead(html.Tr([html.Th('STT'), html.Th('Thời gian bật'), html.Th('Thời gian tắt'), html.Th('Thời lượng'), html.Th('Ghi chú')])),
@@ -883,9 +883,13 @@ def view_pump_detail(n_clicks):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
-    
+    trig = ctx.triggered[0]
+    trig_value = trig.get('value')
+    if not trig_value:
+        raise PreventUpdate
+
     try:
-        trigger_id = ctx.triggered[0]['prop_id']
+        trigger_id = trig['prop_id']
         import json
         obj = json.loads(trigger_id.split('.')[0])
         pump_id = obj.get('index')
@@ -893,6 +897,6 @@ def view_pump_detail(n_clicks):
             return f'/pump/{pump_id}'
     except Exception:
         pass
-    
+
     raise PreventUpdate
 

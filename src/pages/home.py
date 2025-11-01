@@ -1085,7 +1085,6 @@ def update_pump_details(selected_pump, n, pathname, session):
             
             df = df.sort_values('date')
             
-            # Convert numeric columns
             for col in ['flow_rate', 'soil_moisture', 'temperature', 'humidity']:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -1180,7 +1179,6 @@ def update_pump_details(selected_pump, n, pathname, session):
             )
         }
         
-        # Safe access to dataframe values
         flow_rate = "N/A"
         temperature = "N/A"
         humidity = "N/A"
@@ -1213,7 +1211,6 @@ def update_pump_details(selected_pump, n, pathname, session):
                 soil_moisture = f"{float(val):.0f}%" if pd.notna(val) else "N/A"
             except:
                 soil_moisture = "N/A"
-        # Determine rain status from sensor data (mua/rain) or latest pump data
         selected_rain = "N/A"
         try:
             rv = None
@@ -1263,7 +1260,6 @@ def update_pump_details(selected_pump, n, pathname, session):
                 pump_last_on = format_display_time(bat_ts) if bat_ts else "—"
                 pump_last_off = format_display_time(tat_ts) if tat_ts else "—"
 
-                # Compute run duration string (thoi_gian_chay)
                 try:
                     if bat_ts and tat_ts:
                         try:
@@ -1275,7 +1271,6 @@ def update_pump_details(selected_pump, n, pathname, session):
                         except Exception:
                             tat_dt = pd.to_datetime(tat_ts)
 
-                        # Try to set/convert timezone to Asia/Bangkok
                         try:
                             if getattr(bat_dt, 'tzinfo', None) is None:
                                 bat_dt = bat_dt.tz_localize('Asia/Bangkok')
@@ -1625,13 +1620,13 @@ def handle_mode_selection(value, selected_pump, session, current_store):
 
         success, message = update_pump(pump_id, payload, token=token)
         if not success:
-            print(f"✗ Lỗi cập nhật chế độ: {message}")
+            # print(f"✗ Lỗi cập nhật chế độ: {message}")
             fallback_mode = pump_info.get('che_do', None)
             fallback_mode = fallback_mode if isinstance(fallback_mode, int) else None
             return {'mode': fallback_mode, 'ts': datetime.utcnow().isoformat()}
 
         mode_name = {0: 'thủ công', 1: 'tự động', 2: 'bảo trì'}.get(new_mode, str(new_mode))
-        print(f"✓ Máy bơm {pump_id} chuyển sang chế độ {mode_name}")
+        # print(f"✓ Máy bơm {pump_id} chuyển sang chế độ {mode_name}")
         return {'mode': new_mode, 'ts': datetime.utcnow().isoformat()}
 
     except Exception as e:
