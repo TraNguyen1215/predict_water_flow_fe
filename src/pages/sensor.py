@@ -28,7 +28,21 @@ layout = html.Div([
     create_navbar(is_authenticated=True),
     
     dbc.Container([
-        dbc.Row([dbc.Col(TopBar('Quản lý cảm biến', search_id='sensor-search', add_button={'id':'open-add-sensor','label':'Thêm cảm biến'}))], className='my-3'),
+        dbc.Row([
+            dbc.Col(TopBar(
+                'Quản lý cảm biến',
+                extra_left=[
+                    dbc.Button([html.I(className='fas fa-plus me-2'), 'Thêm cảm biến'], id='open-add-sensor', color='primary', className='btn-add')
+                ],
+                extra_right=[
+                    html.Div([html.I(className='fas fa-search topbar-search-icon'), dbc.Input(id='sensor-search', placeholder='Tìm kiếm theo tên', type='text', className='topbar-search topbar-search--slim')], className='topbar-search-wrapper me-2'),
+                    dcc.Dropdown(id='sensor-filter-type', options=[], placeholder='Lọc theo loại cảm biến', clearable=True, style={'minWidth':'200px'}),
+                    dcc.Dropdown(id='sensor-filter-pump', options=[], placeholder='Lọc theo máy bơm', clearable=True, style={'minWidth':'180px'}),
+                    dcc.DatePickerSingle(id='sensor-filter-date', date=None, placeholder='Ngày lắp đặt', display_format='DD/MM/YYYY', style={'marginLeft':'8px'}),
+                    dbc.Button('Xóa lọc', id='sensor-filter-clear', color='danger', size='sm', style={'marginLeft':'8px',"font-size":"16px", "padding":"4px 15px"})
+                ]
+            ), md=12)
+        ], className='my-3'),
 
         dbc.Row([
             dbc.Col(html.Div(className='table-area', children=[
@@ -139,12 +153,12 @@ def load_sensor_types(pathname, session_data):
 
 
 @callback(
-    Output('sensor-loai', 'options'),
+    [Output('sensor-loai', 'options'), Output('sensor-filter-type', 'options')],
     Input('sensor-types-store', 'data')
 )
 def populate_type_options(types_data):
     if not types_data or not isinstance(types_data, dict):
-        return []
+        return [], []
     items = types_data.get('data') or []
     opts = []
     for it in items:
@@ -153,7 +167,7 @@ def populate_type_options(types_data):
         if ma is None:
             continue
         opts.append({'label': str(ten or ma), 'value': ma})
-    return opts
+    return opts, opts
 
 @callback(
     Output('sensor-selected-type', 'data'),
@@ -297,7 +311,7 @@ def fetch_types_on_modal_open(n_add, edit_clicks, session_data):
 
 
 @callback(
-    Output('sensor-pumps-store', 'data'),
+    Output('sensor-pumps-store', 'data', allow_duplicate=True),
     [Input('open-add-sensor', 'n_clicks'), Input({'type': 'edit-sensor', 'index': dash.ALL}, 'n_clicks')],
     State('session-store', 'data'),
     prevent_initial_call='initial_duplicate'
@@ -317,6 +331,21 @@ def fetch_pumps_on_modal_open(n_add, edit_clicks, session_data):
 
 
 @callback(
+    Output('sensor-pumps-store', 'data'),
+    Input('url', 'pathname'),
+    State('session-store', 'data')
+)
+def load_pumps_on_page(pathname, session_data):
+    if pathname != '/sensor':
+        raise PreventUpdate
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+    pumps = list_pumps(limit=200, offset=0, token=token)
+    return pumps
+
+
+@callback(
     Output('sensor-ma-may-bom', 'options'),
     Input('sensor-pumps-store', 'data')
 )
@@ -327,7 +356,7 @@ def populate_pump_options(pumps_data):
     opts = []
     for it in items:
         ma = it.get('ma_may_bom')
-        ten = it.get('ten_may_bom') or it.get('ten')
+        ten = it.get('ten_may_bom')
         if ma is None:
             continue
         opts.append({'label': str(ten or ma), 'value': ma})
@@ -335,10 +364,35 @@ def populate_pump_options(pumps_data):
 
 
 @callback(
-    Output('sensor-table-container', 'children'),
-    [Input('sensor-data-store', 'data'), Input('sensor-search', 'value')]
+    Output('sensor-filter-pump', 'options'),
+    Input('sensor-pumps-store', 'data')
 )
-def render_table(data, search):
+def populate_filter_pump_options(pumps_data):
+    if not pumps_data or not isinstance(pumps_data, dict):
+        return []
+    items = pumps_data.get('data') or []
+    opts = []
+    for it in items:
+        ma = it.get('ma_may_bom')
+        ten = it.get('ten_may_bom')
+        if ma is None:
+            continue
+        opts.append({'label': str(ten or ma), 'value': ma})
+    return opts
+
+@callback(
+    [Output('sensor-filter-type', 'value'), Output('sensor-filter-pump', 'value'), Output('sensor-filter-date', 'date')],
+    Input('sensor-filter-clear', 'n_clicks'),
+    prevent_initial_call=True
+)
+def clear_filters(n_clicks):
+    return None, None, None
+
+@callback(
+    Output('sensor-table-container', 'children'),
+    [Input('sensor-data-store', 'data'), Input('sensor-search', 'value'), Input('sensor-filter-type', 'value'), Input('sensor-filter-pump', 'value'), Input('sensor-filter-date', 'date')]
+)
+def render_table(data, search, filter_type, filter_pump, filter_date):
     if not data or 'data' not in data or not data.get('data'):
         return html.Div(className='empty-state', children=[
             html.Div(className='empty-icon', children=[html.Img(src='/assets/img/empty-box.svg', style={'width':'64px','height':'64px'})]),
@@ -352,6 +406,22 @@ def render_table(data, search):
     except Exception:
         items = items
     for s in items:
+        if filter_type is not None:
+            if str(s.get('loai')) != str(filter_type):
+                if str(s.get('ten_loai_cam_bien') or '') != str(filter_type):
+                    continue
+        if filter_pump is not None:
+            if str(s.get('ma_may_bom')) != str(filter_pump):
+                if str(s.get('ten_may_bom') or '') != str(filter_pump):
+                    continue
+        if filter_date:
+            try:
+                sd = str(filter_date)
+                if not s.get('ngay_lap_dat') or not str(s.get('ngay_lap_dat')).startswith(sd):
+                    continue
+            except Exception:
+                pass
+
         text = ' '.join([
             str(s.get('ten_cam_bien') or ''),
             str(s.get('mo_ta') or ''),

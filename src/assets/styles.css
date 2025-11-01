@@ -189,9 +189,7 @@ body {
 .btn-add i {
     font-size: 0.95rem;
 }
-.btn-add:hover {
-    transform: translateY(-2px);
-}
+
 .btn-edit {
     background: #16a34a !important; /* green */
     border: none !important;
@@ -2093,6 +2091,12 @@ textarea {
 
 .pump-cards-grid > div {
     padding: 8px;
+}
+
+.DateInput_input_1 {
+    box-sizing: border-box;
+    height: 34px;
+    font-size: 16px;
 }
 
 /* Responsive adjustments for pump page */
