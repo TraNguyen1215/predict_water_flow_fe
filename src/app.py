@@ -93,6 +93,15 @@ def display_page(pathname, session_data):
             page = admin_models.layout
         else:
             page = login.layout
+    elif pathname == '/admin/firmware':
+        if is_authenticated and is_admin:
+            try:
+                from pages.admin import admin_firmware
+                page = admin_firmware.layout
+            except Exception:
+                page = admin.layout
+        else:
+            page = login.layout
     elif pathname == '/admin/sensor-types':
         if is_authenticated and is_admin:
             page = admin_sensor_types.layout
