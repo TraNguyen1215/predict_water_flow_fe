@@ -39,14 +39,14 @@ def create_pump_info_section(pump):
         ], className='mb-2 align-items-center')
 
     return dbc.Card([
+        dbc.CardHeader(html.H5("Thông tin máy bơm", className="mb-0", style={"color": "white"}), style={"backgroundColor": "#0358A3"}),
         dbc.CardBody([
-            html.H4(pump.get('ten_may_bom', 'N/A'), className="mb-3"),
+            row_item('Tên máy bơm', html.B(pump.get('ten_may_bom', 'N/A'))),
             row_item('Trạng thái', html.Span(status, className=f"badge bg-{status_color}")),
             row_item('Chế độ', html.Span(mode, className='badge bg-info')),
-            row_item('Mô tả', html.P(pump.get('mo_ta', 'Không có mô tả'))),
+            row_item('Mô tả', pump.get('mo_ta', 'Không có mô tả')),
             row_item('Mã IoT', pump.get('ma_iot', 'Không có mã IoT')),
             row_item('Ngày tạo', format_datetime(pump.get('thoi_gian_tao'))),
-            
         ])
     ], className="mb-4 h-100")
 
@@ -91,8 +91,8 @@ def create_sensor_list_section(sensors, pump_sensors):
             sensor_rows.append(
                 html.Tr([
                     html.Td(idx, style={'width': '5%'}),
-                    html.Td(sensor.get('ten_cam_bien', 'Không xác định'), style={'width': '45%'}),
-                    html.Td(sensor.get('loai', 'N/A'), style={'width': '25%'}),
+                    html.Td(sensor.get('ten_cam_bien', 'Không xác định'), style={'width': '30%'}),
+                    html.Td(sensor.get('ten_loai_cam_bien', 'N/A'), style={'width': '40%'}),
                     html.Td(format_datetime(sensor.get('thoi_gian_tao')), style={'width': '25%'})
                 ])
             )
@@ -101,7 +101,7 @@ def create_sensor_list_section(sensors, pump_sensors):
         sensor_rows = [html.Tr([html.Td("Không có cảm biến nào", colSpan=4, className="text-center text-muted")])]
     
     return dbc.Card([
-        dbc.CardHeader(html.H5("Danh sách cảm biến", className="mb-0")),
+        dbc.CardHeader(html.H5("Danh sách cảm biến", className="mb-0", style={"color": "white"}), style={"backgroundColor": "#0358A3"}),
         dbc.CardBody([
             html.Div([
                 html.Table([
@@ -135,9 +135,9 @@ def create_layout():
             ]),
             
             dbc.Row([
-                dbc.Col(html.Div(id="pump-info-container", className='w-100 h-100'), md=4, className='d-flex'),
-                dbc.Col(html.Div(id="pump-control-container", className='w-100 h-100'), md=4, className='d-flex'),
-                dbc.Col(html.Div(id="pump-sensors-container", className='w-100 h-100'), md=4, className='d-flex'),
+                dbc.Col(html.Div(id="pump-info-container", className='w-100 h-100'), md=3, className='d-flex'),
+                dbc.Col(html.Div(id="pump-control-container", className='w-100 h-100'), md=3, className='d-flex'),
+                dbc.Col(html.Div(id="pump-sensors-container", className='w-100 h-100'), md=6, className='d-flex'),
             ], className='mb-4 align-items-stretch'),
             
             dbc.Row([
@@ -197,7 +197,7 @@ def create_pump_control_section(pump, pump_id):
         pass
 
     return dbc.Card([
-        dbc.CardHeader(html.H5("Điều khiển Máy Bơm", className="mb-0")),
+        dbc.CardHeader(html.H5("Điều khiển Máy Bơm", className="mb-0", style={"color": "white"}), style={"backgroundColor": "#0358A3"}),
         dbc.CardBody([
             html.Div([
                 html.Div([
