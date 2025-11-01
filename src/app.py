@@ -75,11 +75,7 @@ def display_page(pathname, session_data):
             page = pump_detail.layout
         else:
             page = login.layout
-    elif pathname == '/sensor_data':
-        if is_authenticated and is_admin == False:
-            page = sensor_data.layout
-        else:
-            page = login.layout
+    # '/sensor_data' route removed to hide the sensor data page (access by direct URL is no longer served)
     elif pathname == '/predict_data':
         if is_authenticated and is_admin == False:
             page = predict_data.layout

@@ -1487,7 +1487,7 @@ def handle_pump_start(n_clicks, selected_pump, session):
         
         pump_info = get_pump(pump_id, token)
         if not pump_info:
-            print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
+            print(f"Không thể lấy thông tin máy bơm {pump_id}")
             return n_clicks
         
         payload = {
@@ -1500,9 +1500,9 @@ def handle_pump_start(n_clicks, selected_pump, session):
         
         success, message = update_pump(pump_id, payload, token=token)
         if success:
-            print(f"✓ Máy bơm {pump_id} bắt đầu thành công")
+            print(f"Máy bơm {pump_id} bắt đầu thành công")
         else:
-            print(f"✗ Lỗi bắt đầu máy bơm: {message}")
+            print(f"Lỗi bắt đầu máy bơm: {message}")
     except Exception as e:
         print(f"Error starting pump: {e}")
         import traceback
@@ -1528,7 +1528,7 @@ def handle_pump_stop(n_clicks, selected_pump, session):
         
         pump_info = get_pump(pump_id, token)
         if not pump_info:
-            print(f"✗ Không thể lấy thông tin máy bơm {pump_id}")
+            print(f"Không thể lấy thông tin máy bơm {pump_id}")
             return n_clicks
         
         payload = {
@@ -1541,9 +1541,9 @@ def handle_pump_stop(n_clicks, selected_pump, session):
         
         success, message = update_pump(pump_id, payload, token=token)
         if success:
-            print(f"✓ Máy bơm {pump_id} dừng thành công")
+            print(f"Máy bơm {pump_id} dừng thành công")
         else:
-            print(f"✗ Lỗi dừng máy bơm: {message}")
+            print(f"Lỗi dừng máy bơm: {message}")
     except Exception as e:
         print(f"Error stopping pump: {e}")
         import traceback
