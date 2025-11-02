@@ -16,9 +16,17 @@ def format_datetime(dt_str):
     if not dt_str:
         return "Không có dữ liệu"
     try:
-        dt = pd.to_datetime(dt_str, utc=True)
-        dt_local = dt
-        return dt_local.strftime('%H:%M %d/%m/%Y')
+        dt = pd.to_datetime(dt_str, errors='coerce')
+        if pd.isna(dt):
+            return "Không có dữ liệu"
+        try:
+            if getattr(dt, 'tz', None) is None:
+                dt = dt.tz_localize('Asia/Bangkok')
+            else:
+                dt = dt.tz_convert('Asia/Bangkok')
+        except Exception:
+            pass
+        return dt.strftime('%H:%M %d/%m/%Y')
     except:
         return "Không có dữ liệu"
 
@@ -148,8 +156,9 @@ def create_layout():
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H5("Dữ liệu cảm biến theo ngày", className="mb-0 d-inline-block"),
+                            # html.H5("Dữ liệu cảm biến theo ngày", className="mb-0 d-inline-block"),
                             dbc.Row([
+                                        dbc.Col(html.H5("Dữ liệu cảm biến theo ngày", className="mb-0 d-inline-block"), align='center'),
                                         dbc.Col([
                                             dbc.Button(html.I(className='fas fa-chevron-left'), id='pump-detail-prev', color='light', size='sm', className='me-2'),
                                             dcc.DatePickerSingle(
@@ -161,8 +170,9 @@ def create_layout():
                                                 className='d-inline-block ms-1'
                                             ),
                                             dbc.Button(html.I(className='fas fa-chevron-right'), id='pump-detail-next', color='light', size='sm', className='ms-2')
-                                        ], width=4)
-                            ], className="mt-2")
+                                        ], width=6, className='d-flex align-items-center'),
+                                        dbc.Col(dbc.Button([html.I(className='fas fa-list me-2'), 'Xem chi tiết'], id='pump-detail-show-details', color='primary', className='btn-add'), width='auto', className='text-end')
+                            ], className="g-0")
                         ]),
                         dbc.CardBody([
                             dcc.Loading(html.Div(id="pump-detail-data-container"))
@@ -173,7 +183,8 @@ def create_layout():
             
             dcc.Store(id='pump-detail-store', storage_type='memory'),
             dcc.Store(id='pump-detail-page-store', storage_type='memory', data={'page': 1, 'limit': 15, 'total': 0}),
-            
+            dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': None}),
+            dcc.Interval(id='interval-component', interval=60000, n_intervals=0),
             dcc.Store(id='pump-detail-showing-details', storage_type='memory', data=False),
             dcc.Store(id='pump-control-last-action', storage_type='memory', data={'mode': None, 'trang_thai': None}),
             
@@ -237,7 +248,7 @@ def create_pump_control_section(pump, pump_id):
 
 
 @callback(
-    [Output('pump-detail-store', 'data', allow_duplicate=True)],
+    [Output('pump-detail-store', 'data', allow_duplicate=True), Output('selected-pump-store', 'data', allow_duplicate=True)],
     Input('url', 'pathname'),
     State('session-store', 'data'),
     prevent_initial_call='initial_duplicate'
@@ -277,7 +288,12 @@ def load_pump_detail(pathname, session_data):
         'pump_sensors': pump_sensors
     }
     
-    return [store]
+    selected = {
+        'ma_may_bom': pump_data.get('ma_may_bom') or pump_id,
+        'ten_may_bom': pump_data.get('ten_may_bom') or ''
+    }
+
+    return [store, selected]
 
 
 @callback(
@@ -320,9 +336,18 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
     
     if not selected_date:
         selected_date = datetime.date.today().isoformat()
-    
-    
-    data_response = get_data_by_date(selected_date, token=token, limit=1440)
+
+    page = 1
+    limit = 15
+    try:
+        if page_store and isinstance(page_store, dict):
+            page = int(page_store.get('page', 1) or 1)
+            limit = int(page_store.get('limit', 15) or 15)
+    except Exception:
+        page, limit = 1, 15
+
+    offset = max(0, (page - 1) * limit)
+    data_response = get_data_by_date(selected_date, token=token, limit=limit, offset=offset, ma_may_bom=pump_id)
     data_list = data_response.get('data', []) if data_response else []
 
     
@@ -370,7 +395,7 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
                 else:
                     df['thoi_gian_tao'] = df['thoi_gian_tao'].dt.tz_convert('Asia/Bangkok')
             except Exception:
-                df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'])
+                df['thoi_gian_tao'] = pd.to_datetime(df['thoi_gian_tao'], errors='coerce')
         else:
             df['thoi_gian_tao'] = pd.to_datetime(df.get('ngay'))
 
@@ -403,15 +428,6 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
 
     graph = dcc.Graph(figure=fig, config={'displayModeBar': True}, style={'height': '360px'})
 
-    page = 1
-    limit = 15
-    try:
-        if page_store and isinstance(page_store, dict):
-            page = int(page_store.get('page', 1) or 1)
-            limit = int(page_store.get('limit', 15) or 15)
-    except Exception:
-        page, limit = 1, 15
-
     
     if resp_total_pages is None:
         max_pages = max(1, (total + limit - 1) // limit)
@@ -426,9 +442,15 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
     ], className='d-flex align-items-center')
     
     if show_details:
-        start = (page - 1) * limit
-        end = start + limit
-        slice_rows = pump_data_list[start:end]
+        try:
+            start = offset
+        except NameError:
+            start = (page - 1) * limit
+        if isinstance(data_response, dict) and (resp_page is not None or resp_total_pages is not None):
+            slice_rows = pump_data_list
+        else:
+            end = start + limit
+            slice_rows = pump_data_list[start:end]
 
         cols = ['thoi_gian_tao', 'luu_luong_nuoc', 'nhiet_do', 'do_am', 'do_am_dat', 'ma_cam_bien']
         first = slice_rows[0] if slice_rows else {}
@@ -455,11 +477,6 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
             table_rows.append(html.Tr([html.Td(idx)] + cells))
 
         table = dbc.Table([table_header, html.Tbody(table_rows)], bordered=True, striped=True, hover=True, responsive=True, size='sm')
-        footer = html.Div([html.Span(f'Tổng: {total}', className='me-3'), html.Span(f'Trang {page} / {max(1, (total+limit-1)//limit)}')], className='text-end')
-
-        close_icon = dbc.Button(html.I(className='fas fa-times'), id='pump-detail-show-details', color='link', className='p-0')
-        header_div = html.Div(close_icon, className='d-flex justify-content-end mb-2')
-
         inline_pager = html.Div([
             html.Span(f"Tổng bản ghi: {total}", className='me-3'),
             dbc.Button("Trước", id='pump-detail-page-prev', size='sm', className='me-2', color='light', disabled=(page<=1)),
@@ -469,13 +486,10 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
 
         footer = html.Div([inline_pager, html.Div(f'Tổng: {total}', className='ms-3 text-muted')], className='mt-2')
 
-        details_div = html.Div([header_div, table, footer], className='d-flex flex-column')
+        details_div = html.Div([table, footer], className='d-flex flex-column')
         return (details_div, graph, new_page_store)
 
-    details_text = html.Div([
-        dbc.Button('Xem chi tiết', id='pump-detail-show-details', color='link'),
-        pager
-    ], className='d-flex justify-content-between align-items-center')
+    details_text = pager
 
     return (details_text, graph, new_page_store)
 
@@ -511,14 +525,44 @@ def change_pump_detail_page(prev_clicks, next_clicks, page_store):
 
 
 @callback(
-    Output('pump-detail-showing-details', 'data'),
+    [Output('pump-detail-showing-details', 'data'), Output('pump-detail-page-store', 'data', allow_duplicate=True)],
     Input('pump-detail-show-details', 'n_clicks'),
-    State('pump-detail-showing-details', 'data'),
+    [State('pump-detail-showing-details', 'data'), State('pump-detail-page-store', 'data')],
     prevent_initial_call=True
 )
-def toggle_pump_detail_show(n_clicks, current):
-    """Toggle the inline details view when the user clicks 'Xem chi tiết' (or the close button)."""
-    return not bool(current)
+def toggle_pump_detail_show(n_clicks, current, page_store):
+    """Toggle the inline details view when the user clicks 'Xem chi tiết'. """
+    current_bool = bool(current)
+    new_show = not current_bool
+
+    if not page_store or not isinstance(page_store, dict):
+        page_store = {'page': 1, 'limit': 15, 'total': 0}
+    try:
+        page = int(page_store.get('page', 1) or 1)
+    except Exception:
+        page = 1
+    try:
+        limit = int(page_store.get('limit', 15) or 15)
+    except Exception:
+        limit = 15
+    try:
+        total = int(page_store.get('total', 0) or 0)
+    except Exception:
+        total = 0
+
+    if total <= 0:
+        max_pages = 1
+    else:
+        max_pages = max(1, (total + limit - 1) // limit)
+
+    if new_show:
+        if page > max_pages:
+            page = max_pages
+        if page < 1:
+            page = 1
+
+    new_page_store = {'page': page, 'limit': limit, 'total': total}
+    return new_show, new_page_store
 
 
 @callback(
@@ -627,7 +671,6 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
             except Exception:
                 new_mode = mode_value
             current_mode = pump.get('che_do') if isinstance(pump, dict) else None
-            # ignore when programmatic update or no-op
             if new_mode is None or new_mode == current_mode or last_action.get('mode') == new_mode:
                 return (dash.no_update, dash.no_update, dash.no_update)
             payload = {

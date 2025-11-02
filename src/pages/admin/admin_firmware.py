@@ -20,8 +20,8 @@ layout = html.Div([
                     dbc.CardHeader('Tải lên firmware mới'),
                     dbc.CardBody([
                         dcc.Upload(id='admin-firmware-upload', children=
-                                   html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)']),
-                                   style={'border': '1px dashed #ced4da', 'padding': '20px', 'textAlign': 'center'}),
+                                    html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)']),
+                                    style={'border': '1px dashed #ced4da', 'padding': '20px', 'textAlign': 'center'}),
                         dbc.Row([
                             dbc.Col(dbc.Input(id='admin-firmware-name', placeholder='Tên tệp (ten_tep)', className='mb-2')),
                             dbc.Col(dbc.Input(id='admin-firmware-version', placeholder='Phiên bản (ví dụ 1.0.0)', className='mb-2')),
@@ -107,7 +107,6 @@ def load_firmware_page(pathname, session_data):
 
 
 def _parse_uploaded_contents(contents, filename):
-    # contents is like 'data:application/octet-stream;base64,<b64data>'
     if not contents or not isinstance(contents, str):
         return None
     try:
@@ -143,7 +142,6 @@ def handle_firmware_upload(n_clicks, contents, filename, name, version, descript
         return dash.no_update, html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)'])
 
     token = session_data.get('token')
-    # Backend expects fields: ten_tep, phien_ban, mo_ta, url
     meta = {
         'ten_tep': (name or filename) or '',
         'phien_ban': version or '',
@@ -163,11 +161,9 @@ def handle_firmware_upload(n_clicks, contents, filename, name, version, descript
     prevent_initial_call=True
 )
 def handle_delete_firmware(n_clicks_list, session_data):
-    # placeholder: perform delete for buttons that were clicked
     if not session_data or not session_data.get('authenticated') or not session_data.get('is_admin'):
         raise dash.exceptions.PreventUpdate
 
-    # Find which index was clicked
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -187,7 +183,6 @@ def handle_delete_firmware(n_clicks_list, session_data):
 
     token = session_data.get('token')
     try:
-        # normalize fid to int when possible
         try:
             fid_int = int(fid)
         except Exception:
@@ -196,5 +191,4 @@ def handle_delete_firmware(n_clicks_list, session_data):
     except Exception:
         success = False
 
-    # return reset clicks
     return [0 for _ in (n_clicks_list or [])]

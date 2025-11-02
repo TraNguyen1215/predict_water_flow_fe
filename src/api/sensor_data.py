@@ -38,6 +38,8 @@ def get_data_by_date(ngay: str, token: Optional[str] = None, limit: Optional[int
             headers['Authorization'] = f'Bearer {token}'
         
         params = {'limit': limit, 'offset': offset}
+        if ma_may_bom is not None:
+            params['ma_may_bom'] = ma_may_bom
         resp = requests.get(_url(f'du-lieu-cam-bien/ngay/{ngay}'), timeout=5, headers=headers, params=params)
         try:
             data = resp.json() if resp.content else {}
