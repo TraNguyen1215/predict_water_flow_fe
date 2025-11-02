@@ -1,4 +1,4 @@
-from dash import html, dcc, callback, Input, Output, State
+from dash import html, dcc, callback, Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from components.navbar import create_navbar
@@ -8,6 +8,7 @@ from api.sensor_data import get_data_by_date
 from api.pump import update_pump
 import plotly.graph_objs as go
 import dash
+import json
 import datetime
 import pandas as pd
 
@@ -149,7 +150,7 @@ def create_layout():
             ], className='mb-4 align-items-stretch'),
             
             dbc.Row([
-                dbc.Col(html.Div(id="pump-charts-container"))
+                dbc.Col(html.Div(id="pump-charts-container"), style={"margin-bottom": "24px"})
             ]),
             
             dbc.Row([
@@ -179,12 +180,13 @@ def create_layout():
                         ])
                     ], className="mb-4")
                 ])
-            ]),
+            ], style={"margin-bottom": "24px"}),
             
             dcc.Store(id='pump-detail-store', storage_type='memory'),
             dcc.Store(id='pump-detail-page-store', storage_type='memory', data={'page': 1, 'limit': 15, 'total': 0}),
             dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': None}),
-            dcc.Interval(id='interval-component', interval=60000, n_intervals=0),
+            dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
+            dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1, n_intervals=0),
             dcc.Store(id='pump-detail-showing-details', storage_type='memory', data=False),
             dcc.Store(id='pump-control-last-action', storage_type='memory', data={'mode': None, 'trang_thai': None}),
             
@@ -434,11 +436,43 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
     if page > max_pages:
         page = max_pages
     new_page_store = {'page': page, 'limit': limit, 'total': total}
+    def build_numeric_buttons(current, last):
+        items = []
+        items.append(dbc.Button(html.I(className='fas fa-chevron-left'), id='pump-detail-page-prev', color='light', size='sm', className='me-1', disabled=(current<=1)))
+
+        if last <= 7:
+            page_sequence = list(range(1, last + 1))
+        else:
+            page_sequence = [1]
+            left = max(2, current - 1)
+            right = min(last - 1, current + 1)
+            if left > 2:
+                page_sequence.append('...')
+            for i in range(left, right + 1):
+                page_sequence.append(i)
+            if right < last - 1:
+                page_sequence.append('...')
+            page_sequence.append(last)
+
+        for p in page_sequence:
+            if p == '...':
+                items.append(html.Span('...', className='page-ellipsis mx-2 align-self-center'))
+            else:
+                btn_id = {'type': 'pump-detail-page', 'index': int(p)}
+                is_current = (int(p) == int(current))
+                if is_current:
+                    items.append(dbc.Button(str(p), id=btn_id, size='sm', className='mx-1',
+                                            style={'backgroundColor': '#0358A3', 'borderColor': '#0358A3', 'color': 'white'}))
+                else:
+                    items.append(dbc.Button(str(p), id=btn_id, color='light', size='sm', disabled=False, className='mx-1'))
+
+        # next
+        items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id='pump-detail-page-next', color='light', size='sm', className='ms-1', disabled=(current>=last)))
+        return items
+
     pager = html.Div([
         html.Span(f"Tổng bản ghi: {total}", className='me-3'),
-        dbc.Button("Trước", id='pump-detail-page-prev', size='sm', className='me-2', color='light', disabled=(page<=1)),
-        html.Span(f"{page}/{max_pages}", className='mx-2'),
-        dbc.Button("Sau", id='pump-detail-page-next', size='sm', className='ms-2', color='light', disabled=(page>=max_pages))
+        dbc.ButtonGroup(build_numeric_buttons(page, max_pages), className='page-pagination')
     ], className='d-flex align-items-center')
     
     if show_details:
@@ -479,9 +513,7 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
         table = dbc.Table([table_header, html.Tbody(table_rows)], bordered=True, striped=True, hover=True, responsive=True, size='sm')
         inline_pager = html.Div([
             html.Span(f"Tổng bản ghi: {total}", className='me-3'),
-            dbc.Button("Trước", id='pump-detail-page-prev', size='sm', className='me-2', color='light', disabled=(page<=1)),
-            html.Span(f"{page}/{max_pages}", className='mx-2'),
-            dbc.Button("Sau", id='pump-detail-page-next', size='sm', className='ms-2', color='light', disabled=(page>=max_pages))
+            dbc.ButtonGroup(build_numeric_buttons(page, max_pages), className='page-pagination')
         ], className='d-flex align-items-center justify-content-end')
 
         footer = html.Div([inline_pager, html.Div(f'Tổng: {total}', className='ms-3 text-muted')], className='mt-2')
@@ -497,11 +529,11 @@ def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, s
 
 @callback(
     Output('pump-detail-page-store', 'data', allow_duplicate=True),
-    [Input('pump-detail-page-prev', 'n_clicks'), Input('pump-detail-page-next', 'n_clicks')],
+    [Input('pump-detail-page-prev', 'n_clicks'), Input('pump-detail-page-next', 'n_clicks'), Input({'type': 'pump-detail-page', 'index': ALL}, 'n_clicks')],
     [State('pump-detail-page-store', 'data')],
     prevent_initial_call=True
 )
-def change_pump_detail_page(prev_clicks, next_clicks, page_store):
+def change_pump_detail_page(prev_clicks, next_clicks, page_btns, page_store):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
@@ -519,7 +551,17 @@ def change_pump_detail_page(prev_clicks, next_clicks, page_store):
     elif 'pump-detail-page-next' in prop:
         page = min(max_pages, page + 1)
     else:
-        raise PreventUpdate
+        # pattern-matching id for numeric page buttons
+        try:
+            # prop looks like '{"type":"pump-detail-page","index":3}'
+            id_dict = json.loads(prop)
+            if isinstance(id_dict, dict) and id_dict.get('type') == 'pump-detail-page':
+                idx = int(id_dict.get('index', page))
+                page = max(1, min(max_pages, idx))
+            else:
+                raise PreventUpdate
+        except Exception:
+            raise PreventUpdate
 
     return {'page': page, 'limit': limit, 'total': total}
 

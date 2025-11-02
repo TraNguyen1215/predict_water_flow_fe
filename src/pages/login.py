@@ -15,7 +15,7 @@ layout = html.Div(
                     children=[
                         html.Img(
                             src="/assets/logo_waterflow.png",
-                            style={"width": "90px", "background-color": "white", "border-radius": "50%"},
+                            style={"width": "90px", "background-color": "white", "border-radius": "50% !important"},
                             className="mb-3"
                         ),
                         html.H2("HỆ THỐNG DỰ BÁO LƯU LƯỢNG NƯỚC", className="fw-bold text-white mb-3"),
