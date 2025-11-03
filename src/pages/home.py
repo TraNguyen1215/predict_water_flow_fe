@@ -267,7 +267,7 @@ layout = html.Div([
         html.Div(id='pump-list-container', children=[]),
     dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': 'Máy Bơm Nước Chính'}),
     dcc.Store(id='pump-mode-refresh', data={'mode': None, 'ts': None}),
-        dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1),  # Run once on page load
+        dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1),
         
         dbc.Row([
             dbc.Col([

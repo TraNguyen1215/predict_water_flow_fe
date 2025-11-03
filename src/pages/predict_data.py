@@ -437,7 +437,7 @@ layout = html.Div([
                                 html.Span(id='pump-location-value', className='fw-semibold text-end')
                             ], className='d-flex justify-content-between align-items-center border-0 px-0'),
                             dbc.ListGroupItem([
-                                html.Span('Thiết bị IoT', className='text-muted'),
+                                html.Span('Trạng thái hiện tại', className='text-muted'),
                                 html.Span(id='pump-power-value', className='fw-semibold text-end')
                             ], className='d-flex justify-content-between align-items-center border-0 px-0'),
                             dbc.ListGroupItem([

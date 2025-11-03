@@ -246,8 +246,6 @@ layout = html.Div([
                     dbc.Input(id='pump-ten', type='text'),
                     dbc.Label('Mô tả', className='mt-2'),
                     dbc.Textarea(id='pump-mo-ta'),
-                    dbc.Label('Mã IoT liên kết', className='mt-2'),
-                    dbc.Input(id='pump-ma-iot', type='text'),
                     dbc.Label('Chế độ', className='mt-2'),
                     dcc.Dropdown(
                         id='pump-che-do',
@@ -415,7 +413,7 @@ def update_pump_cards(data, filter_che_do, filter_trang_thai):
 
 
 @callback(
-    [Output('pump-modal', 'is_open'), Output('pump-modal-title', 'children'), Output('pump-edit-id', 'data'), Output('pump-ten', 'value'), Output('pump-mo-ta', 'value'), Output('pump-ma-iot', 'value'), Output('pump-che-do', 'value'), Output('pump-trang-thai', 'value')],
+    [Output('pump-modal', 'is_open'), Output('pump-modal-title', 'children'), Output('pump-edit-id', 'data'), Output('pump-ten', 'value'), Output('pump-mo-ta', 'value'), Output('pump-che-do', 'value'), Output('pump-trang-thai', 'value')],
     [Input('open-add-pump', 'n_clicks'), Input({'type': 'edit-pump', 'index': dash.ALL}, 'n_clicks'), Input('pump-cancel', 'n_clicks')],
     [State('pump-data-store', 'data')],
     prevent_initial_call=True
@@ -429,23 +427,27 @@ def open_pump_modal(n_add, edit_clicks, n_cancel, store):
     if not trig_value:
         raise PreventUpdate
     if btn == 'open-add-pump':
-        return True, 'Thêm máy bơm', None, '', '', '', 0, False
+        return True, 'Thêm máy bơm', None, '', '', 0, False
 
     if 'edit-pump' in btn:
         try:
             import json as _json
             obj = _json.loads(btn)
             idx = int(obj.get('index'))
+            
+            p = None
+            for it in (store.get('data') or []):
+                if it.get('ma_may_bom') == idx:
+                    p = it
+                    break
+            if not p:
+                raise PreventUpdate
+                
+            return True, 'Sửa máy bơm', idx, p.get('ten_may_bom'), p.get('mo_ta'), p.get('che_do'), p.get('trang_thai')
         except Exception:
             raise PreventUpdate
-        p = None
-        for it in (store.get('data') or []):
-            if it.get('ma_may_bom') == idx:
-                p = it
-                break
-        if not p:
-            raise PreventUpdate
-    return True, 'Sửa máy bơm', idx, p.get('ten_may_bom'), p.get('mo_ta'), p.get('ma_iot_lk'), p.get('che_do'), p.get('trang_thai')
+            
+    return False, '', None, '', '', 0, False
 
 
 @callback(
@@ -467,7 +469,6 @@ def save_pump(n_save, edit_id, ten, mo_ta, ma_iot, che_do, trang_thai, store, se
         payload = {
             'ten_may_bom': ten,
             'mo_ta': mo_ta,
-            'ma_iot_lk': ma_iot,
             'che_do': int(che_do) if che_do is not None else 0,
             'trang_thai': bool(trang_thai) if trang_thai is not None else False
         }

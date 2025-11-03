@@ -54,7 +54,6 @@ def create_pump_info_section(pump):
             row_item('Trạng thái', html.Span(status, className=f"badge bg-{status_color}")),
             row_item('Chế độ', html.Span(mode, className='badge bg-info')),
             row_item('Mô tả', pump.get('mo_ta', 'Không có mô tả')),
-            row_item('Mã IoT', pump.get('ma_iot', 'Không có mã IoT')),
             row_item('Ngày tạo', format_datetime(pump.get('thoi_gian_tao'))),
         ])
     ], className="mb-4 h-100")
@@ -263,7 +262,7 @@ def load_pump_detail(pathname, session_data):
     try:
         pump_id = int(pathname.split('/')[-1])
     except (ValueError, IndexError):
-        raise PreventUpdate
+        return [dash.no_update, dash.no_update]
 
     token = None
     if session_data and isinstance(session_data, dict):
@@ -327,10 +326,10 @@ def render_pump_from_store(store):
 def load_pump_sensor_data(selected_date, pump_store, page_store, show_details, session_data):
     """Load dữ liệu cảm biến theo ngày"""
     if not pump_store or not isinstance(pump_store, dict):
-        raise PreventUpdate
+        return dash.no_update, dash.no_update, dash.no_update
     pump_id = pump_store.get('pump_id')
     if not pump_id:
-        raise PreventUpdate
+        return dash.no_update, dash.no_update, dash.no_update
     
     token = None
     if session_data and isinstance(session_data, dict):
@@ -689,7 +688,6 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
             payload = {
                 'ten_may_bom': pump.get('ten_may_bom', ''),
                 'mo_ta': pump.get('mo_ta', ''),
-                'ma_iot_lk': pump.get('ma_iot_lk', ''),
                 'che_do': pump.get('che_do'),
                 'trang_thai': True
             }
@@ -701,7 +699,6 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
             payload = {
                 'ten_may_bom': pump.get('ten_may_bom', ''),
                 'mo_ta': pump.get('mo_ta', ''),
-                'ma_iot_lk': pump.get('ma_iot_lk', ''),
                 'che_do': pump.get('che_do'),
                 'trang_thai': False
             }
@@ -718,7 +715,6 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
             payload = {
                 'ten_may_bom': pump.get('ten_may_bom', ''),
                 'mo_ta': pump.get('mo_ta', ''),
-                'ma_iot_lk': pump.get('ma_iot_lk', ''),
                 'che_do': new_mode,
                 'trang_thai': bool(pump.get('trang_thai', False))
             }
