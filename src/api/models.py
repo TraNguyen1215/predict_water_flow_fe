@@ -44,17 +44,22 @@ def get_model(ma_mo_hinh: int, token: Optional[str] = None) -> Dict[str, Any]:
         return {}
 
 
-def create_model(file_tuple: Tuple[str, bytes], metadata: Dict[str, Any] = None, token: Optional[str] = None) -> Tuple[bool, str]:
-    """Tạo mô hình dự báo mới. file_tuple nên là (filename, filebytes)."""
+def create_model(metadata: Dict[str, Any], token: Optional[str] = None) -> Tuple[bool, str]:
+    """Tạo mô hình dự báo mới."""
     try:
-        headers = {}
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
+        headers = {
+            'Authorization': f'Bearer {token}' if token else '',
+            'Content-Type': 'application/json'
+        }
         
-        files = {'file': file_tuple} if file_tuple else None
-        data = metadata if metadata else {}
-        
-        resp = requests.post(_url('mo-hinh-du-bao'), files=files, data=data, timeout=30, headers=headers)
+        # Prepare the data
+        data = {
+            'ten_mo_hinh': metadata.get('ten_mo_hinh', ''),
+            'phien_ban': metadata.get('phien_ban', ''),
+            'trang_thai': metadata.get('trang_thai', False)
+        }
+            
+        resp = requests.post(_url('mo-hinh-du-bao'), json=data, timeout=30, headers=headers)
         try:
             msg = resp.json() if resp.content else {}
         except Exception:
@@ -62,7 +67,7 @@ def create_model(file_tuple: Tuple[str, bytes], metadata: Dict[str, Any] = None,
             
         if resp.status_code == 201:
             return True, 'Tạo mô hình thành công'
-        return False, msg.get('detail', 'Lỗi không xác định')
+        return False, str(msg)
     except requests.RequestException as e:
         return False, str(e)
 

@@ -11,6 +11,7 @@ layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-models-url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
+    dcc.Store(id='admin-model-delete-id', storage_type='session'),
     dbc.Toast(
         id='admin-models-toast',
         header='Thông báo',
@@ -21,19 +22,24 @@ layout = html.Div([
         children='',
         style={'position': 'fixed', 'top': '80px', 'right': '24px', 'zIndex': 2100}
     ),
-    # Toast for delete operations
-    html.Div(id='delete-toasts-container', children=[
-        dbc.Toast(
-            id={'type': 'admin-models-toast-delete', 'index': i},
-            header='Thông báo',
-            is_open=False,
-            dismissable=True,
-            duration=3500,
-            icon='success',
-            children='',
-            style={'position': 'fixed', 'top': f'{80 + i*60}px', 'right': '24px', 'zIndex': 2100}
-        ) for i in range(10)  # Support up to 10 simultaneous delete operations
-    ]),
+    dbc.Toast(
+        id='admin-model-delete-toast',
+        header='Thông báo',
+        is_open=False,
+        dismissable=True,
+        duration=3500,
+        icon='success',
+        children='',
+        style={'position': 'fixed', 'top': '140px', 'right': '24px', 'zIndex': 2100}
+    ),
+    dbc.Modal([
+        dbc.ModalHeader(html.H5('Xác nhận xóa')),
+        dbc.ModalBody(html.Div('Bạn có chắc chắn muốn xóa mô hình này?', id='admin-model-delete-body')),
+        dbc.ModalFooter([
+            dbc.Button('Xóa', id='confirm-delete-model', color='danger'),
+            dbc.Button('Hủy', id='cancel-delete-model', className='ms-2')
+        ])
+    ], id='admin-model-delete-modal', is_open=False, centered=True),
     dbc.Container([
         dbc.Row([
             dbc.Col([
@@ -57,9 +63,11 @@ layout = html.Div([
                                         'textAlign': 'center',
                                         'cursor': 'pointer',
                                         'backgroundColor': '#f8f9fa',
-                                        'transition': 'all 0.3s ease'
+                                        'transition': 'all 0.3s ease',
+                                        'marginBottom': '0'
                                     },
-                                    multiple=False
+                                    multiple=False,
+                                    accept='.h5,.pkl'
                                 )
                             ], md=12, className='mb-4')
                         ]),
@@ -124,92 +132,83 @@ layout = html.Div([
 
 @callback(
     Output('admin-models-table', 'children'),
-    Input('admin-models-interval', 'n_intervals'),
+    [Input('admin-models-interval', 'n_intervals'),
+     Input('admin-models-url', 'pathname')],
     State('session-store', 'data'),
 )
-def update_models_table(n_intervals, session_data):
+def update_models_table(n_intervals, pathname, session_data):
+    if not session_data:
+        return html.Div('Vui lòng đăng nhập để xem danh sách mô hình.', className='text-center my-3')
+        
     token = session_data.get('token', None)
-    print("Token:", token)  # Debug log
+    if not token:
+        return html.Div('Vui lòng đăng nhập để xem danh sách mô hình.', className='text-center my-3')
     
     models_data = api_models.list_models(token=token)
-    print("Models data:", models_data)  # Debug log
+    # print("Models data:", models_data)  # Debug log
     
     if not models_data or not models_data.get('data'):
         return html.Div('Không có mô hình nào.', className='text-center my-3')
     
-    # Create table
-    table_header = [
+    rows = []
+    for model in models_data.get('data', []):
+        mid = model.get('ma_mo_hinh')
+        name = model.get('ten_mo_hinh') or f"Model-{mid}"
+        version = model.get('phien_ban') or '--'
+        created = model.get('thoi_gian_tao')
+        updated = model.get('thoi_gian_cap_nhat')
+
+        created_str = str(created).split('T')[0] if created and 'T' in str(created) else (str(created) if created else '--')
+        updated_str = str(updated).split('T')[0] if updated and 'T' in str(updated) else (str(updated) if updated else '--')
+
+        rows.append(html.Tr([
+            html.Td(html.Strong(name or f"Model-{mid}")),
+            html.Td(version, className='text-nowrap'),
+            html.Td(created_str, className='text-nowrap'),
+            html.Td(updated_str, className='text-nowrap'),
+            html.Td(
+                dbc.Badge('Hoạt động' if model.get('trang_thai', False) else 'Không hoạt động',
+                        color='success' if model.get('trang_thai', False) else 'danger',
+                        className='me-1')
+            ),
+            html.Td(html.Div([
+                dbc.Button(
+                    html.I(className='fas fa-edit'),
+                    id={'type': 'admin-model-edit-btn', 'index': str(mid)},
+                    color='light',
+                    size='sm',
+                    className='action-btn edit',
+                    title='Chỉnh sửa'
+                ),
+                dbc.Button(
+                    html.I(className='fas fa-trash'),
+                    id={'type': 'admin-model-delete-btn', 'index': str(mid)},
+                    color='light',
+                    size='sm',
+                    className='action-btn delete',
+                    title='Xóa mô hình'
+                )
+            ], className='user-actions'), className='text-end')
+        ]))
+
+    table = dbc.Table([
         html.Thead(html.Tr([
-            html.Th('Mã mô hình', className='text-center'),
             html.Th('Tên mô hình'),
             html.Th('Phiên bản'),
             html.Th('Thời gian tạo'),
             html.Th('Thời gian cập nhật'),
             html.Th('Trạng thái'),
-            html.Th('Thao tác', className='text-center')
-        ]), className='table-header')
-    ]
-    
-    rows = []
-    for model in models_data.get('data', []):
-        # Handle created time
-        try:
-            created_time = datetime.fromisoformat(model['thoi_gian_tao'].replace('Z', '+00:00')) if model['thoi_gian_tao'] else None
-            created_time_str = created_time.strftime('%d/%m/%Y %H:%M:%S') if created_time else 'N/A'
-        except (AttributeError, ValueError):
-            created_time_str = 'N/A'
+            html.Th('Hành động')
+        ])),
+        html.Tbody(rows)
+    ], bordered=False, hover=True, responsive=True, className='user-table firmware-table')
 
-        # Handle updated time
-        try:
-            updated_time = datetime.fromisoformat(model['thoi_gian_cap_nhat'].replace('Z', '+00:00')) if model['thoi_gian_cap_nhat'] else None
-            updated_time_str = updated_time.strftime('%d/%m/%Y %H:%M:%S') if updated_time else 'N/A'
-        except (AttributeError, ValueError):
-            updated_time_str = 'N/A'
-        
-        # Status badge
-        status_badge = dbc.Badge(
-            'Hoạt động' if model.get('trang_thai', False) else 'Không hoạt động',
-            color='success' if model.get('trang_thai', False) else 'danger',
-            className='me-1'
-        )
-        
-        # Action buttons
-        action_buttons = html.Div([
-            dbc.Button(
-                html.I(className='fas fa-edit'),
-                id={'type': 'admin-model-edit-btn', 'index': model['ma_mo_hinh']},
-                color='primary',
-                size='sm',
-                className='me-2'
-            ),
-            dbc.Button(
-                html.I(className='fas fa-trash-alt'),
-                id={'type': 'admin-model-delete-btn', 'index': model['ma_mo_hinh']},
-                color='danger',
-                size='sm'
-            )
-        ], className='d-flex justify-content-center')
-        
-        row = html.Tr([
-            html.Td(model.get('ma_mo_hinh', 'N/A'), className='text-center'),
-            html.Td(model.get('ten_mo_hinh', 'N/A')),
-            html.Td(model.get('phien_ban', 'N/A')),
-            html.Td(created_time_str),
-            html.Td(updated_time_str),
-            html.Td(status_badge),
-            html.Td(action_buttons, className='text-center')
-        ])
-        rows.append(row)
-    
-    table_body = [html.Tbody(rows)]
-    
-    return dbc.Table(
-        table_header + table_body,
-        bordered=True,
-        hover=True,
-        responsive=True,
-        className='mb-0'
-    )
+    table_card = dbc.Card([
+        dbc.CardHeader(html.Span('Danh sách mô hình', className='user-table-title')),
+        dbc.CardBody([table])
+    ], className='user-table-card')
+
+    return table_card
 
 @callback(
     [Output('admin-model-name', 'value'),
@@ -221,51 +220,155 @@ def update_models_table(n_intervals, session_data):
     [State('admin-model-upload', 'contents'),
      State('admin-model-name', 'value'),
      State('admin-model-version', 'value'),
+     State('admin-model-upload', 'filename'),
      State('session-store', 'data')]
 )
-def handle_model_upload(upload_clicks, file_content, name, version, session_data):
+def handle_model_upload(upload_clicks, file_content, name, version, filename, session_data):
     if not ctx.triggered_id or not upload_clicks:
         return dash.no_update, dash.no_update, False, '', 'success'
     
-    if not session_data:
+    # Debug logs
+    # print("Upload button clicked")
+    # print(f"Name: {name}")
+    # print(f"Version: {version}")
+    # print(f"Filename: {filename}")
+    
+    if not session_data or not session_data.get('token'):
         return dash.no_update, dash.no_update, True, 'Vui lòng đăng nhập lại.', 'danger'
     
-    token = session_data.get('token', None)
+    token = session_data.get('token')
     
-    if not all([file_content, name, version]):
-        return name, version, True, 'Vui lòng điền đầy đủ thông tin và chọn file', 'danger'
+    # Check required fields
+    if not name:
+        return name, version, True, 'Vui lòng nhập tên mô hình', 'danger'
+    if not version:
+        return name, version, True, 'Vui lòng nhập phiên bản mô hình', 'danger'
     
-    # Process file content
-    content_type, content_string = file_content.split(',')
-    decoded = base64.b64decode(content_string)
-    
-    # Create model
-    success, message = api_models.create_model(
-        file_tuple=('model.h5', decoded),
-        metadata={
-            'ten_mo_hinh': name,
-            'phien_ban': version,
-            'trang_thai': True
-        },
-        token=token
-    )
-    
-    return '', '', True, message, 'success' if success else 'danger'
+    try:
+        # Create model
+        success, message = api_models.create_model(
+            metadata={
+                'ten_mo_hinh': name,
+                'phien_ban': version,
+                'trang_thai': True
+            },
+            token=token
+        )
+        if success:
+            return '', '', True, 'Tải lên mô hình thành công!', 'success'
+        else:
+            return name, version, True, f'Lỗi: {message}', 'danger'
+            
+    except Exception as e:
+        print(f"Error uploading model: {str(e)}")
+        return name, version, True, f'Lỗi khi tải lên mô hình: {str(e)}', 'danger'
 
 @callback(
-    [Output({'type': 'admin-models-toast-delete', 'index': MATCH}, 'is_open'),
-     Output({'type': 'admin-models-toast-delete', 'index': MATCH}, 'children'),
-     Output({'type': 'admin-models-toast-delete', 'index': MATCH}, 'icon')],
-    Input({'type': 'admin-model-delete-btn', 'index': MATCH}, 'n_clicks'),
+    Output('admin-model-delete-modal', 'is_open'),
+    Output('admin-model-delete-id', 'data'),
+    Output('admin-model-delete-toast', 'is_open'),
+    Output('admin-model-delete-toast', 'children'),
+    Output('admin-model-delete-toast', 'icon'),
+    Input({'type': 'admin-model-delete-btn', 'index': dash.ALL}, 'n_clicks'),
+    Input('confirm-delete-model', 'n_clicks'),
+    Input('cancel-delete-model', 'n_clicks'),
+    State('admin-model-delete-id', 'data'),
     State('session-store', 'data'),
     prevent_initial_call=True
 )
-def handle_model_delete(delete_clicks, session_data):
-    if not ctx.triggered_id:
-        return False, '', 'success'
+def handle_model_delete_flow(delete_btns, confirm_click, cancel_click, stored_model_id, session_data):
+    """Unified handler for delete button, confirm and cancel actions.
+
+    Returns:
+      is_open (bool): whether modal is open
+      model_id (any): stored model id (or None)
+      toast_open (bool): whether to show toast
+      toast_children (str|html): toast content
+      toast_icon (str): 'success'|'danger'
+    """
+    trigger = ctx.triggered_id
+    # Use callback_context to determine which input fired and its value
+    triggered = dash.callback_context.triggered
+    if not triggered:
+        raise dash.exceptions.PreventUpdate
+    fired = triggered[0]
+    prop = fired.get('prop_id', '')
+    value = fired.get('value', None)
+
+    # Normalize trigger id into python object when pattern-matching ids are used
+    try:
+        trigger = json.loads(prop.split('.')[0].replace("'", '"'))
+    except Exception:
+        trigger = prop
+
+    # Delete button clicked -> open modal and store id
+    if isinstance(trigger, dict) and trigger.get('type') == 'admin-model-delete-btn':
+        # find which button triggered and extract its index
+        try:
+            # use dash.callback_context to find the prop_id
+            btn_id = prop.split('.')[0]
+            btn_obj = json.loads(btn_id.replace("'", '"'))
+            model_id = btn_obj.get('index')
+        except Exception:
+            raise dash.exceptions.PreventUpdate
+        # Only open modal when the button click value is truthy (prevents opens on layout updates)
+        if not value:
+            raise dash.exceptions.PreventUpdate
+        return True, model_id, False, '', 'success'
+
+    # Confirm clicked -> perform delete
+    if trigger == 'confirm-delete-model' or (isinstance(trigger, dict) and trigger.get('id') == 'confirm-delete-model'):
+        model_id = stored_model_id
+        # Only act when confirm button has a truthy click value
+        if not value or not model_id or not session_data:
+            raise dash.exceptions.PreventUpdate
+        token = session_data.get('token')
+        try:
+            success, message = api_models.delete_model(model_id, token=token)
+        except Exception as e:
+            success = False
+            message = str(e)
+        # Close modal, clear stored id, show delete-toast (index 0)
+        return False, None, True, message, 'success' if success else 'danger'
+
+    # Cancel clicked -> close modal without action
+    if trigger == 'cancel-delete-model' or (isinstance(trigger, dict) and trigger.get('id') == 'cancel-delete-model'):
+        # Only act when cancel button has a truthy click value
+        if not value:
+            raise dash.exceptions.PreventUpdate
+        return False, None, False, '', 'success'
+
+    # Default: prevent update
+    raise dash.exceptions.PreventUpdate
+
+@callback(
+    Output('model-upload-display', 'children'),
+    Input('admin-model-upload', 'contents'),
+    State('admin-model-upload', 'filename'),
+    prevent_initial_call=True
+)
+def update_upload_display(contents, filename):
+    if not contents or not filename:
+        return [
+            html.I(className='fas fa-file-upload me-2'),
+            html.Span('Kéo thả tệp ở đây hoặc bấm để chọn'),
+            html.Br(),
+            html.Small('Chỉ chấp nhận file .h5, .pkl', className='text-muted')
+        ]
     
-    token = session_data.get('token', None)
-    model_id = ctx.triggered_id['index']
-    
-    success, message = api_models.delete_model(model_id, token=token)
-    return True, message, 'success' if success else 'danger'
+    if not filename.lower().endswith(('.h5', '.pkl')):
+        return [
+            html.I(className='fas fa-exclamation-circle me-2', style={'color': '#dc3545'}),
+            html.Strong(filename, className='me-2'),
+            html.Small('(File không hợp lệ)', className='text-danger'),
+            html.Br(),
+            html.Small('Chỉ chấp nhận file .h5, .pkl', className='text-muted')
+        ]
+
+    return [
+        html.I(className='fas fa-file me-2'),
+        html.Strong(filename, className='me-2'),
+        html.Small('(Đã chọn)', className='text-success'),
+        html.Br(),
+        html.Small('Nhấn nút tải lên để hoàn tất', className='text-muted')
+    ]

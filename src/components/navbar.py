@@ -1,5 +1,5 @@
 import dash_bootstrap_components as dbc
-from dash import html
+from dash import html, dcc
 
 
 def create_navbar(is_authenticated=False, is_admin=False, current_path: str = None):
@@ -72,4 +72,5 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
         sticky="top"
     )
 
-    return navbar
+    # Ensure a session-store is available on every page that includes the navbar
+    return html.Div([dcc.Store(id='session-store', storage_type='session'), navbar])
