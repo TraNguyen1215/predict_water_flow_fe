@@ -21,10 +21,6 @@ layout = html.Div([
     ),
     dbc.Container([
         dbc.Row([
-            dbc.Col(html.H2([html.I(className='fas fa-chip me-2'), 'Quản lý Firmware']), md=9),
-        ], className='my-3'),
-
-        dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader(html.Span('Tải lên firmware mới', className='user-table-title')),
@@ -91,7 +87,7 @@ layout = html.Div([
                             ], md=12, className='d-flex align-items-center justify-content-center')
                         ])
                     ])
-                ], className='mb-4 user-table-card')
+                ], className='mb-4 user-table-card',  style={'marginTop': '70px'})
             ], md=12)
         ]),
 
