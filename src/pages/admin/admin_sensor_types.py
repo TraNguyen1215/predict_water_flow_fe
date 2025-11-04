@@ -25,12 +25,17 @@ def format_date(date_str):
             return date_str
     return "N/A"
 
-def create_sensor_types_table(search_value='', user_filter='all', pump_filter='all', status_filter='all'):
+def create_sensor_types_table(search_value='', user_filter='all', pump_filter='all', status_filter='all', type_filter='all'):
     sensor_types = fetch_sensor_types_data()
     # Build a Bootstrap table (styled like the users table)
     rows = []
     # Flatten sensors for rows
     for sensor_type in sensor_types:
+        # Filter by sensor type first
+        if type_filter != 'all':
+            if str(sensor_type.get('ma_loai_cam_bien')) != type_filter:
+                continue
+                
         for sensor in sensor_type.get('cam_bien', []):
             identifier = sensor.get('ma_cam_bien')
             status = sensor.get('trang_thai')
@@ -177,6 +182,12 @@ layout = html.Div([
                         className='me-2'
                     ),
                     dbc.Select(
+                        id='sensor-type-filter',
+                        placeholder='Lọc theo loại cảm biến',
+                        options=[],
+                        className='me-2'
+                    ),
+                    dbc.Select(
                         id='user-filter',
                         placeholder='Lọc theo người dùng',
                         options=[],
@@ -225,19 +236,28 @@ layout = html.Div([
     create_add_sensor_type_modal()
 ])# Callbacks for filter functionality
 @callback(
-    [Output('user-filter', 'options'),
+    [Output('sensor-type-filter', 'options'),
+     Output('user-filter', 'options'),
      Output('pump-filter', 'options')],
     Input('admin-sensor-types-url', 'pathname')
 )
 def update_filter_options(pathname):
     if not pathname or pathname != '/admin/sensor-types':
-        raise dash.exceptions.PreventUpdate
+        raise PreventUpdate
         
     sensor_types = fetch_sensor_types_data()
     users = set()
     pumps = set()
     
+    # Process sensor types
+    type_options = []
     for sensor_type in sensor_types:
+        type_options.append({
+            'label': f"{sensor_type.get('ten_loai_cam_bien')} ({sensor_type.get('tong_cam_bien', 0)})",
+            'value': str(sensor_type.get('ma_loai_cam_bien'))
+        })
+        
+        # Collect users and pumps
         for sensor in sensor_type.get('cam_bien', []):
             if sensor.get('nguoi_dung'):
                 users.add((
@@ -250,28 +270,33 @@ def update_filter_options(pathname):
                     sensor['may_bom'].get('ten_may_bom')
                 ))
     
+    # Sort options
+    type_options.sort(key=lambda x: x['label'])
     user_options = [{'label': name, 'value': str(uid)} for uid, name in sorted(users, key=lambda x: x[1])]
     pump_options = [{'label': name, 'value': str(pid)} for pid, name in sorted(pumps, key=lambda x: x[1])]
     
-    # Add "All" option to both
+    # Add "All" options
+    type_options.insert(0, {'label': 'Tất cả loại cảm biến', 'value': 'all'})
     user_options.insert(0, {'label': 'Tất cả người dùng', 'value': 'all'})
     pump_options.insert(0, {'label': 'Tất cả máy bơm', 'value': 'all'})
     
-    return user_options, pump_options
+    return type_options, user_options, pump_options
 
 @callback(
     Output('sensor-types-content', 'children'),
     [Input('search-input', 'value'),
      Input('user-filter', 'value'),
      Input('pump-filter', 'value'),
-     Input('status-filter', 'value')]
+     Input('status-filter', 'value'),
+     Input('sensor-type-filter', 'value')]
 )
-def update_table_content(search, user_filter, pump_filter, status_filter):
+def update_table_content(search, user_filter, pump_filter, status_filter, type_filter):
     return create_sensor_types_table(
         search_value=search or '',
         user_filter=user_filter or 'all',
         pump_filter=pump_filter or 'all',
-        status_filter=status_filter or 'all'
+        status_filter=status_filter or 'all',
+        type_filter=type_filter or 'all'
     )
 
 @callback(

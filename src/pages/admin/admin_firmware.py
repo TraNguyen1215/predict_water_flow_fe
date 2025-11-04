@@ -9,6 +9,16 @@ import base64
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-firmware-url', refresh=False),
+    dbc.Toast(
+        id='admin-firmware-toast',
+        header='Thông báo',
+        is_open=False,
+        dismissable=True,
+        duration=3500,
+        icon='success',
+        children='',
+        style={'position': 'fixed', 'top': '80px', 'right': '24px', 'zIndex': 2100}
+    ),
     dbc.Container([
         dbc.Row([
             dbc.Col(html.H2([html.I(className='fas fa-chip me-2'), 'Quản lý Firmware']), md=9),
@@ -17,36 +27,82 @@ layout = html.Div([
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader('Tải lên firmware mới'),
+                    dbc.CardHeader(html.Span('Tải lên firmware mới', className='user-table-title')),
                     dbc.CardBody([
-                        dcc.Upload(id='admin-firmware-upload', children=
-                                    html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)']),
-                                    style={'border': '1px dashed #ced4da', 'padding': '20px', 'textAlign': 'center'}),
                         dbc.Row([
-                            dbc.Col(dbc.Input(id='admin-firmware-name', placeholder='Tên tệp (ten_tep)', className='mb-2')),
-                            dbc.Col(dbc.Input(id='admin-firmware-version', placeholder='Phiên bản (ví dụ 1.0.0)', className='mb-2')),
-                            dbc.Col(dbc.Input(id='admin-firmware-url', placeholder='URL tải xuống (tuỳ chọn)', className='mb-2')),
-                        ], className='mt-2'),
+                            dbc.Col([
+                                dcc.Upload(
+                                    id='admin-firmware-upload',
+                                    children=html.Div(id='upload-display', children=[
+                                        html.I(className='fas fa-file-upload me-2'),
+                                        html.Span('Kéo thả tệp ở đây hoặc bấm để chọn'),
+                                        html.Br(),
+                                        html.Small('Chỉ chấp nhận file .bin', className='text-muted')
+                                    ]),
+                                    style={
+                                        'border': '2px dashed #dee2e6',
+                                        'borderRadius': '8px',
+                                        'padding': '30px 20px',
+                                        'textAlign': 'center',
+                                        'cursor': 'pointer',
+                                        'backgroundColor': '#f8f9fa',
+                                        'transition': 'all 0.3s ease'
+                                    },
+                                    multiple=False
+                                )
+                            ], md=12, className='mb-4')
+                        ]),
                         dbc.Row([
-                            dbc.Col(dbc.Input(id='admin-firmware-description', placeholder='Mô tả (tuỳ chọn)', className='mb-2')),
-                            dbc.Col(dbc.Button('Tải lên', id='admin-firmware-upload-btn', color='primary'))
-                        ], className='mt-2')
+                            dbc.Col([
+                                dbc.Label('Tên firmware', className='mb-2 fw-medium'),
+                                dbc.Input(
+                                    id='admin-firmware-name',
+                                    placeholder='Nhập tên firmware...',
+                                    className='mb-3'
+                                )
+                            ], md=4),
+                            dbc.Col([
+                                dbc.Label('Phiên bản', className='mb-2 fw-medium'),
+                                dbc.Input(
+                                    id='admin-firmware-version',
+                                    placeholder='Ví dụ: 1.0.0',
+                                    className='mb-3'
+                                )
+                            ], md=4),
+                            dbc.Col([
+                                dbc.Label('Mô tả', className='mb-2 fw-medium'),
+                                dbc.Textarea(
+                                    id='admin-firmware-description',
+                                    placeholder='Nhập mô tả firmware (tùy chọn)...',
+                                    className='mb-3',
+                                    style={'height': '50px', 'resize': 'none'}
+                                    
+                                )
+                            ], md=4),
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Button(
+                                    [html.I(className='fas fa-upload me-2'), 'Tải lên'],
+                                    id='admin-firmware-upload-btn',
+                                    color='primary',
+                                    className='d-flex align-items-center justify-content-center h-100 px-4'
+                                )
+                            ], md=12, className='d-flex align-items-center justify-content-center')
+                        ])
                     ])
-                ], className='mb-3')
+                ], className='mb-4 user-table-card')
             ], md=12)
         ]),
 
         dbc.Row([
             dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader('Danh sách firmware'),
-                    dbc.CardBody([
-                        dcc.Store(id='admin-firmware-store'),
-                        html.Div(id='admin-firmware-table-container')
-                    ])
+                html.Div([
+                    dcc.Store(id='admin-firmware-store'),
+                    html.Div(id='admin-firmware-table-container')
                 ])
             ], md=12)
-        ])
+        ], className='mt-3')
     ], fluid=True, className='py-4')
 ])
 
@@ -76,34 +132,61 @@ def load_firmware_page(pathname, session_data):
 
     rows = []
     for item in items:
-        # Map backend fields to expected model names
-        fid = item.get('ma_tep_ma_nhung') or item.get('id') or item.get('firmware_id')
-        name = item.get('ten_tep') or item.get('ten') or item.get('filename') or ''
-        version = item.get('phien_ban') or item.get('phienban') or item.get('version') or ''
-        description = item.get('mo_ta') or item.get('description') or ''
-        created = item.get('thoi_gian_tao') or item.get('created_at') or ''
-        updated = item.get('thoi_gian_cap_nhat') or item.get('updated_at') or ''
-        download_link = item.get('url') or (api_firmware.download_url(fid) if fid else '#')
+        fid = item.get('ma_tep_ma_nhung')
+        name = item.get('ten_tep')
+        version = item.get('phien_ban')
+        description = item.get('mo_ta')
+        created = item.get('thoi_gian_tao')
+        updated = item.get('thoi_gian_cap_nhat')
+        download_link = item.get('url') or (api_firmware.download_url(fid, token) if fid else '#')
 
         rows.append(html.Tr([
-            html.Td(str(fid)),
-            html.Td(name),
-            html.Td(version),
-            html.Td(description),
-            html.Td(str(created)),
-            html.Td(str(updated)),
-            html.Td([
-                dbc.Button('Tải xuống', href=download_link, target='_blank', size='sm', color='info', className='me-2'),
-                dbc.Button('Xóa', id={'type': 'delete-firmware-btn', 'index': str(fid)}, color='danger', size='sm')
-            ])
+            html.Td(html.Strong(name or f"FW-{fid}")),
+            html.Td(version, className='text-nowrap'),
+            html.Td(description or '--'),
+            html.Td(download_link if download_link and download_link != '#' else '--', className='text-break'),
+            html.Td(str(created).split('T')[0] if 'T' in str(created) else str(created), className='text-nowrap'),
+            html.Td(str(updated).split('T')[0] if 'T' in str(updated) else str(updated), className='text-nowrap'),
+            html.Td(html.Div([
+                dbc.Button(
+                    html.I(className='fas fa-download'),
+                    href=download_link,
+                    target='_blank',
+                    color='light',
+                    size='sm',
+                    className='action-btn download',
+                    title='Tải xuống'
+                ),
+                dbc.Button(
+                    html.I(className='fas fa-trash'),
+                    id={'type': 'delete-firmware-btn', 'index': str(fid)},
+                    color='light',
+                    size='sm',
+                    className='action-btn delete',
+                    title='Xóa firmware'
+                )
+            ], className='user-actions'), className='text-end')
         ]))
 
     table = dbc.Table([
-        html.Thead(html.Tr([html.Th('ID'), html.Th('Tên'), html.Th('Phiên bản'), html.Th('Mô tả'), html.Th('Thời gian tạo'), html.Th('Thời gian cập nhật'), html.Th('Hành động')])),
+        html.Thead(html.Tr([
+            html.Th('Tên firmware'),
+            html.Th('Phiên bản'),
+            html.Th('Mô tả'),
+            html.Th('URL'),
+            html.Th('Thời gian tạo'),
+            html.Th('Thời gian cập nhật'),
+            html.Th('Hành động')
+        ])),
         html.Tbody(rows)
-    ], bordered=True, hover=True, responsive=True)
+    ], bordered=False, hover=True, responsive=True, className='user-table firmware-table')
 
-    return table
+    table_card = dbc.Card([
+        dbc.CardHeader(html.Span('Danh sách firmware', className='user-table-title')),
+        dbc.CardBody([table])
+    ], className='user-table-card')
+
+    return table_card
 
 
 def _parse_uploaded_contents(contents, filename):
@@ -118,40 +201,98 @@ def _parse_uploaded_contents(contents, filename):
 
 
 @callback(
+    Output('upload-display', 'children'),
+    Input('admin-firmware-upload', 'contents'),
+    State('admin-firmware-upload', 'filename'),
+    prevent_initial_call=True
+)
+def update_upload_display(contents, filename):
+    if not contents or not filename:
+        return [
+            html.I(className='fas fa-file-upload me-2'),
+            html.Span('Kéo thả tệp ở đây hoặc bấm để chọn'),
+            html.Br(),
+            html.Small('Chỉ chấp nhận file .bin', className='text-muted')
+        ]
+    
+    return [
+        html.I(className='fas fa-file me-2'),
+        html.Strong(filename, className='me-2'),
+        html.Small('(Đã chọn)', className='text-success'),
+        html.Br(),
+        html.Small('Nhấn nút tải lên để hoàn tất', className='text-muted')
+    ]
+
+@callback(
     Output('admin-firmware-store', 'data'),
-    Output('admin-firmware-upload', 'children'),
+    Output('admin-firmware-upload', 'contents'),
     Input('admin-firmware-upload-btn', 'n_clicks'),
     State('admin-firmware-upload', 'contents'),
     State('admin-firmware-upload', 'filename'),
     State('admin-firmware-name', 'value'),
     State('admin-firmware-version', 'value'),
     State('admin-firmware-description', 'value'),
-    State('admin-firmware-url', 'value'),
     State('session-store', 'data'),
     prevent_initial_call=True
 )
-def handle_firmware_upload(n_clicks, contents, filename, name, version, description, url, session_data):
+def handle_firmware_upload(n_clicks, contents, filename, name, version, description, session_data):
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
     if not session_data or not session_data.get('authenticated') or not session_data.get('is_admin'):
         return dash.no_update, dash.no_update
 
+    # Validate required fields
+    if not name or not name.strip():
+        return dash.no_update, html.Div([
+            html.I(className='fas fa-exclamation-circle me-2'),
+            'Vui lòng nhập tên firmware'
+        ], className='text-danger')
+
+    # Validate file upload
     parsed = _parse_uploaded_contents(contents, filename)
     if not parsed:
-        return dash.no_update, html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)'])
+        return dash.no_update, html.Div([
+            html.I(className='fas fa-exclamation-circle me-2'),
+            'Vui lòng chọn tệp firmware (file .bin)'
+        ], className='text-danger')
 
     token = session_data.get('token')
     meta = {
-        'ten_tep': (name or filename) or '',
+        'ten_tep': name.strip(),  # Use cleaned name
         'phien_ban': version or '',
-        'mo_ta': description or '',
-        'url': url or ''
+        'mo_ta': description or ''
     }
-    success, msg = api_firmware.upload_firmware(parsed, metadata=meta, token=token)
+    try:
+        success, msg = api_firmware.upload_firmware(parsed, metadata=meta, token=token)
+    except Exception:
+        success = False
     if success:
-        return {'status': 'uploaded'}, html.Div(['Tải lên thành công: ', html.Strong(filename)])
-    return dash.no_update, html.Div(['Kéo thả tệp ở đây hoặc bấm để chọn (file .bin)'])
+        return {'status': 'uploaded', 'filename': filename}, html.Div([
+            html.I(className='fas fa-check-circle me-2 text-success'),
+            'Tải lên thành công: ',
+            html.Strong(filename)
+        ])
+    return dash.no_update, html.Div([
+        html.I(className='fas fa-exclamation-circle me-2'),
+        'Không thể tải lên firmware. Vui lòng thử lại.'
+    ], className='text-danger')
+
+
+@callback(
+    Output('admin-firmware-toast', 'is_open'),
+    Output('admin-firmware-toast', 'children'),
+    Output('admin-firmware-toast', 'icon'),
+    Input('admin-firmware-store', 'data'),
+    prevent_initial_call=True
+)
+def show_firmware_toast(store):
+    if not store or not isinstance(store, dict):
+        raise dash.exceptions.PreventUpdate
+    if store.get('status') == 'uploaded':
+        fname = store.get('filename') or ''
+        return True, html.Span(['Tải lên thành công: ', html.Strong(fname)]), 'success'
+    raise dash.exceptions.PreventUpdate
 
 
 @callback(

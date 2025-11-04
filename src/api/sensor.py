@@ -118,5 +118,53 @@ def get_sensor_types(token: Optional[str] = None) -> Dict[str, Any]:
         return {'data': [], 'error': data}
     except requests.RequestException as e:
         return {'data': [], 'error': str(e)}
+
+# thêm loại cảm biến, cập nhật, xóa loại cảm biến có thể được thêm tương tự khi cần thiết
+def create_sensor_type(sensor_type: Dict[str, Any], token: Optional[str] = None) -> Tuple[bool, str]:
+    try:
+        headers = {}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        resp = requests.post(_url('loai-cam-bien/'), json=sensor_type, timeout=5, headers=headers)
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {}
+        if resp.status_code in (200, 201):
+            return True, data.get('message', 'Tạo loại cảm biến thành công')
+        return False, data.get('message', data.get('error', 'Tạo loại cảm biến thất bại'))
+    except requests.RequestException as e:
+        return False, f'Lỗi kết nối tới server: {e}'
     
+def delete_sensor_type(ma_loai_cam_bien: int, token: Optional[str] = None) -> Tuple[bool, str]:
+    try:
+        headers = {}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        resp = requests.delete(_url(f'loai-cam-bien/{ma_loai_cam_bien}'), timeout=5, headers=headers)
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {}
+        if resp.status_code in (200, 204):
+            return True, data.get('message', 'Xóa loại cảm biến thành công')
+        return False, data.get('message', data.get('error', 'Xóa loại cảm biến thất bại'))
+    except requests.RequestException as e:
+        return False, f'Lỗi kết nối tới server: {e}'
+    
+def update_sensor_type(ma_loai_cam_bien: int, sensor_type: Dict[str, Any], token: Optional[str] = None) -> Tuple[bool, str]:
+    try:
+        headers = {}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        resp = requests.put(_url(f'loai-cam-bien/{ma_loai_cam_bien}'), json=sensor_type, timeout=5, headers=headers)
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = {}
+        if resp.status_code in (200, 204):
+            return True, data.get('message', 'Cập nhật loại cảm biến thành công')
+        return False, data.get('message', data.get('error', 'Cập nhật loại cảm biến thất bại'))
+    except requests.RequestException as e:
+        return False, f'Lỗi kết nối tới server: {e}'
 

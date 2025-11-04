@@ -44,9 +44,7 @@ def get_firmware(firmware_id: int, token: Optional[str] = None) -> Dict[str, Any
 
 
 def upload_firmware(file_tuple: Tuple[str, bytes], metadata: Dict[str, Any] = None, token: Optional[str] = None) -> Tuple[bool, str]:
-    """Upload a firmware file. file_tuple should be (filename, filebytes).
-    metadata is an optional dict with extra fields (version, device_type, notes, ...)
-    """
+    """Upload a firmware file. file_tuple should be (filename, filebytes).    """
     try:
         headers = {}
         if token:
@@ -82,6 +80,16 @@ def delete_firmware(firmware_id: int, token: Optional[str] = None) -> Tuple[bool
         return False, f'Lỗi kết nối tới server: {e}'
 
 
-def download_url(firmware_id: int) -> str:
-    """Return a URL to download the firmware. Backend is expected to serve this path."""
+def download_url(firmware_id: int, token: Optional[str] = None) -> Optional[str]:
+    """Return a URL to download the firmware.
+    
+    Args:
+        firmware_id (int): ID of the firmware to download
+        token (Optional[str]): Bearer token for authentication
+        
+    Returns:
+        Optional[str]: Download URL if firmware exists, None otherwise
+    """
+    if not token:
+        return None
     return _url(f'tep-ma-nhung/{firmware_id}/download')
