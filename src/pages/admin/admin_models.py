@@ -40,6 +40,44 @@ layout = html.Div([
             dbc.Button('Hủy', id='cancel-delete-model', className='ms-2')
         ])
     ], id='admin-model-delete-modal', is_open=False, centered=True),
+    # Edit model modal
+    dcc.Store(id='admin-model-edit-id', storage_type='session'),
+    dbc.Modal([
+        dbc.ModalHeader(html.H5(id='admin-model-modal-title')),
+        dbc.ModalBody([
+            dbc.Form([
+                dbc.Row([
+                    dbc.Col(dbc.Label('Tên mô hình', className='fw-bold'), md=12),
+                    dbc.Col(dbc.Input(id='admin-model-modal-name', type='text'), md=12),
+                ]),
+                dbc.Row([
+                    dbc.Col(dbc.Label('Phiên bản', className='fw-bold'), md=12),
+                    dbc.Col(dbc.Input(id='admin-model-modal-version', type='text'), md=12),
+                ]),
+                dbc.Row([
+                    dbc.Col(dbc.Label('Mô tả', className='fw-bold'), md=12),
+                    dbc.Col(dbc.Textarea(id='admin-model-modal-description', style={'height':'80px', 'resize':'none'}), md=12),
+                ]),
+                dbc.Row([
+                    dbc.Col(dbc.Checkbox(id='admin-model-modal-status', label='Hoạt động'), md=12),
+                ])
+            ])
+        ]),
+        dbc.ModalFooter([
+            dbc.Button('Lưu', id='admin-model-save', color='primary'),
+            dbc.Button('Hủy', id='admin-model-cancel', className='ms-2')
+        ])
+    ], id='admin-model-modal', is_open=False, centered=True),
+    dbc.Toast(
+        id='admin-model-edit-toast',
+        header='Thông báo',
+        is_open=False,
+        dismissable=True,
+        duration=3500,
+        icon='success',
+        children='',
+        style={'position': 'fixed', 'top': '200px', 'right': '24px', 'zIndex': 2100}
+    ),
     dbc.Container([
         dbc.Row([
             dbc.Col([
@@ -166,11 +204,8 @@ def update_models_table(n_intervals, pathname, session_data):
             html.Td(version, className='text-nowrap'),
             html.Td(created_str, className='text-nowrap'),
             html.Td(updated_str, className='text-nowrap'),
-            html.Td(
-                dbc.Badge('Hoạt động' if model.get('trang_thai', False) else 'Không hoạt động',
-                        color='success' if model.get('trang_thai', False) else 'danger',
-                        className='me-1')
-            ),
+            html.Td(html.Span('Hoạt động' if model.get('trang_thai', False) else 'Không hoạt động',
+                            className=f"user-status-badge {'active' if model.get('trang_thai', False) else 'inactive'}")),
             html.Td(html.Div([
                 dbc.Button(
                     html.I(className='fas fa-edit'),
@@ -339,6 +374,84 @@ def handle_model_delete_flow(delete_btns, confirm_click, cancel_click, stored_mo
         return False, None, False, '', 'success'
 
     # Default: prevent update
+    raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    Output('admin-model-modal', 'is_open', allow_duplicate=True), Output('admin-model-modal-title', 'children'), Output('admin-model-edit-id', 'data', allow_duplicate=True),
+    Output('admin-model-modal-name', 'value'), Output('admin-model-modal-version', 'value'), Output('admin-model-modal-description', 'value'), Output('admin-model-modal-status', 'value'),
+    Input({'type': 'admin-model-edit-btn', 'index': dash.ALL}, 'n_clicks'),
+    State('admin-model-edit-id', 'data'), State('session-store', 'data'),
+    prevent_initial_call=True
+)
+def open_model_edit_modal(edit_clicks, stored_edit_id, session_data):
+    # Open edit modal when an edit button is clicked and populate fields
+    ctx_trigger = dash.callback_context
+    if not ctx_trigger.triggered:
+        raise dash.exceptions.PreventUpdate
+    trig = ctx_trigger.triggered[0]
+    prop = trig.get('prop_id', '')
+    value = trig.get('value')
+    if not value:
+        raise dash.exceptions.PreventUpdate
+    try:
+        import json as _json
+        btn_obj = _json.loads(prop.split('.')[0].replace("'", '"'))
+        model_id = btn_obj.get('index')
+    except Exception:
+        raise dash.exceptions.PreventUpdate
+
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+
+    model = {}
+    try:
+        model = api_models.get_model(int(model_id), token=token) if model_id is not None else {}
+    except Exception:
+        model = {}
+
+    name = model.get('ten_mo_hinh') if isinstance(model, dict) else ''
+    version = model.get('phien_ban') if isinstance(model, dict) else ''
+    description = model.get('mo_ta') or model.get('moTa') or model.get('description') or ''
+    status = bool(model.get('trang_thai', False)) if isinstance(model, dict) else False
+
+    return True, 'Chỉnh sửa mô hình', model_id, name, version, description, status
+
+
+@callback(
+    Output('admin-model-modal', 'is_open', allow_duplicate=True), Output('admin-model-edit-id', 'data', allow_duplicate=True),
+    Output('admin-model-edit-toast', 'is_open'), Output('admin-model-edit-toast', 'children'), Output('admin-model-edit-toast', 'icon'),
+    Input('admin-model-save', 'n_clicks'), Input('admin-model-cancel', 'n_clicks'),
+    State('admin-model-edit-id', 'data'), State('admin-model-modal-name', 'value'), State('admin-model-modal-version', 'value'), State('admin-model-modal-description', 'value'), State('admin-model-modal-status', 'value'), State('session-store', 'data'),
+    prevent_initial_call=True
+)
+def handle_model_save(save_click, cancel_click, edit_id, name, version, description, status, session_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    action = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if action == 'admin-model-cancel':
+        return False, None, False, '', 'success'
+
+    if action == 'admin-model-save':
+        if not edit_id or not session_data:
+            raise dash.exceptions.PreventUpdate
+        token = session_data.get('token')
+        payload = {
+            'ten_mo_hinh': name or '',
+            'phien_ban': version or '',
+            'trang_thai': bool(status),
+            'mo_ta': description or ''
+        }
+        try:
+            success, message = api_models.update_model(int(edit_id), payload, token=token)
+        except Exception as e:
+            success = False
+            message = str(e)
+        return False, None, True, message or ('Cập nhật thành công' if success else 'Lỗi khi cập nhật'), 'success' if success else 'danger'
+
     raise dash.exceptions.PreventUpdate
 
 @callback(

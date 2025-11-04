@@ -4,6 +4,7 @@ import dash
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 import math
+import json
 from components.navbar import create_navbar
 from api import user as api_user
 from dash.dependencies import ALL
@@ -370,11 +371,37 @@ def render_users_dashboard(users, page_state):
             html.Td(actions, className='text-end')
         ]))
 
-    pagination_controls = html.Div([
-        dbc.Button('Trước', id='admin-users-page-prev', color='light', size='sm', className='pagination-btn', disabled=prev_disabled),
-        html.Span(f'Trang {current_page} / {total_pages}', className='pagination-label fw-semibold'),
-        dbc.Button('Sau', id='admin-users-page-next', color='light', size='sm', className='pagination-btn', disabled=next_disabled)
-    ], className='d-flex align-items-center justify-content-between pagination-controls mt-3')
+    def _build_users_pagination(current, max_pages, window=3):
+        items = []
+        prev_disabled_local = (current <= 1)
+        items.append(dbc.Button(html.I(className='fas fa-chevron-left'), id={'type': 'admin-user-page-prev', 'index': 'prev'}, color='light', size='sm', className='me-1', disabled=prev_disabled_local))
+
+        def page_button(p):
+            active = (p == current)
+            return dbc.Button(str(p), id={'type': 'admin-user-page', 'index': str(p)}, color='primary' if active else 'light', size='sm', className='me-1')
+
+        if max_pages <= 7:
+            for p in range(1, max_pages + 1):
+                items.append(page_button(p))
+        else:
+            left = max(1, current - window)
+            right = min(max_pages, current + window)
+            if left > 1:
+                items.append(page_button(1))
+                if left > 2:
+                    items.append(html.Span('...', className='mx-1'))
+            for p in range(left, right + 1):
+                items.append(page_button(p))
+            if right < max_pages:
+                if right < max_pages - 1:
+                    items.append(html.Span('...', className='mx-1'))
+                items.append(page_button(max_pages))
+
+        next_disabled_local = (current >= max_pages)
+        items.append(dbc.Button(html.I(className='fas fa-chevron-right'), id={'type': 'admin-user-page-next', 'index': 'next'}, color='light', size='sm', className='ms-1', disabled=next_disabled_local))
+        return dbc.ButtonGroup(items, className='page-pagination')
+
+    pagination_controls = _build_users_pagination(current_page, total_pages)
 
     table = dbc.Table([
         table_header,
@@ -382,8 +409,8 @@ def render_users_dashboard(users, page_state):
     ], bordered=False, hover=True, responsive=True, className='user-table')
 
     table_card = dbc.Card([
-        dbc.CardHeader(html.Span('Chi tiết thiết bị của từng người dùng', className='user-table-title')),
-        dbc.CardBody([table, pagination_controls])
+        dbc.CardHeader(html.Span('Chi tiết người dùng', className='user-table-title')),
+        dbc.CardBody([table, html.Div(pagination_controls, className='d-flex justify-content-center mt-3')])
     ], className='user-table-card')
 
     dashboard = dbc.Container([
@@ -397,38 +424,46 @@ def render_users_dashboard(users, page_state):
 
 @callback(
     Output('admin-users-table-page', 'data'),
-    [Input('admin-users-page-prev', 'n_clicks'), Input('admin-users-page-next', 'n_clicks')],
-    [State('admin-users-table-page', 'data'), State('admin-users-page-store', 'data')],
+    [Input({'type': 'admin-user-page', 'index': ALL}, 'n_clicks'), Input({'type': 'admin-user-page-prev', 'index': ALL}, 'n_clicks'), Input({'type': 'admin-user-page-next', 'index': ALL}, 'n_clicks')],
+    State('admin-users-table-page', 'data'), State('admin-users-page-store', 'data'),
     prevent_initial_call=True
 )
-def change_users_table_page(prev_clicks, next_clicks, page_state, users):
+def change_users_table_page(page_clicks, prev_clicks, next_clicks, page_state, users):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
-
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    current_page = 1
-    if isinstance(page_state, dict):
-        try:
-            current_page = int(page_state.get('page', 1))
-        except (TypeError, ValueError):
-            current_page = 1
-
-    total_pages = max(1, math.ceil(len(users or []) / ROWS_PER_PAGE))
-
-    if button_id == 'admin-users-page-prev':
-        if current_page <= 1:
-            raise dash.exceptions.PreventUpdate
-        current_page -= 1
-    elif button_id == 'admin-users-page-next':
-        if current_page >= total_pages:
-            raise dash.exceptions.PreventUpdate
-        current_page += 1
-    else:
+    trig = ctx.triggered[0]
+    pid = trig['prop_id'].split('.')[0]
+    try:
+        obj = json.loads(pid)
+    except Exception:
         raise dash.exceptions.PreventUpdate
 
-    return {'page': current_page}
+    data = page_state or {'page': 1}
+    max_pages = max(1, math.ceil(len(users or []) / ROWS_PER_PAGE))
+    t = obj.get('type')
+    idx = obj.get('index')
+    if t == 'admin-user-page':
+        try:
+            target = int(idx)
+        except Exception:
+            raise dash.exceptions.PreventUpdate
+        if target < 1:
+            target = 1
+        if target > max_pages:
+            target = max_pages
+        data['page'] = target
+        return data
+    if t == 'admin-user-page-prev':
+        data['page'] = max(1, int(data.get('page', 1)) - 1)
+        return data
+    if t == 'admin-user-page-next':
+        nextp = int(data.get('page', 1)) + 1
+        if nextp > max_pages:
+            nextp = max_pages
+        data['page'] = nextp
+        return data
+    raise dash.exceptions.PreventUpdate
 
 
 @callback(
