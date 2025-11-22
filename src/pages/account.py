@@ -371,41 +371,7 @@ layout = html.Div([
                     appearance_content
                 ], id='account-settings-container', style={'display': 'none'}),
 
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5([
-                            html.I(className="fas fa-chart-bar me-2"),
-                            "Thống Kê Hoạt Động"
-                        ], className="mb-0")
-                    ]),
-                    dbc.CardBody([
-                        dbc.Row([
-                            dbc.Col([
-                                html.Div([
-                                    html.I(className="fas fa-eye fa-2x text-primary mb-2"),
-                                    html.H4("125", className="mb-1"),
-                                    html.P("Lượt xem", className="text-muted mb-0 small")
-                                ], className="text-center")
-                            ], md=4),
-                            
-                            dbc.Col([
-                                html.Div([
-                                    html.I(className="fas fa-calendar fa-2x text-success mb-2"),
-                                    html.H4("30", className="mb-1"),
-                                    html.P("Ngày hoạt động", className="text-muted mb-0 small")
-                                ], className="text-center")
-                            ], md=4),
-                            
-                            dbc.Col([
-                                html.Div([
-                                    html.I(className="fas fa-clock fa-2x text-warning mb-2"),
-                                    html.H4("15h", className="mb-1"),
-                                    html.P("Thời gian sử dụng", className="text-muted mb-0 small")
-                                ], className="text-center")
-                            ], md=4),
-                        ])
-                    ])
-                ], id='stats-card', className="shadow-sm dark-card")
+                # Statistics card removed per request ("Thống Kê Hoạt Động").
             ], md=8)
         ])
     ], fluid=True, className="py-4")
@@ -564,16 +530,15 @@ def handle_change_password(n_clicks, current_password, new_password, confirm_new
 @callback(
     [Output('security', 'style'),
         Output('account-main-card', 'style'),
-        Output('stats-card', 'style'),
         Output('account-settings-container', 'style')],
     Input('account-url', 'hash')
 )
 def show_security_card(url_hash):
     if url_hash and url_hash.lstrip('#') == 'security':
-        return {'display': 'block'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
+        return {'display': 'block'}, {'display': 'none'}, {'display': 'none'}
 
     if url_hash and url_hash.lstrip('#') == 'settings':
-        return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'block'}
+        return {'display': 'none'}, {'display': 'none'}, {'display': 'block'}
 
-    return {'display': 'none'}, {}, {'display': 'block'}, {'display': 'none'}
+    return {'display': 'none'}, {}, {'display': 'none'}
 

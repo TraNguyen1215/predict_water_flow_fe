@@ -18,7 +18,15 @@ PUMP_STATUS_BLUE_MAP = {'Đang chạy': '#0358a3', 'Đã dừng': '#60a5fa'}
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-url', refresh=False),
-    html.Div(id='admin-dashboard', style={'margin-bottom': '100px', 'margin-top': '80px', 'margin-left': '20px', 'margin-right': '20px'})
+    html.Div(
+        id='admin-dashboard',
+        style={
+            'marginBottom': '100px',
+            'marginTop': '80px',
+            'marginLeft': '20px',
+            'marginRight': '20px'
+        }
+    )
 ])
 
 
