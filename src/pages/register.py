@@ -21,10 +21,10 @@ layout = html.Div(
                             style={"width": "90px", "border-radius": "50% !important", "background-color": "white"},
                             className="mb-3"
                         ),
-                        html.H2("HỆ THỐNG DỰ BÁO LƯU LƯỢNG NƯỚC", className="fw-bold text-white mb-3"),
+                        html.H2("HỆ THỐNG GIÁM SÁT VÀ DỰ BÁO DÒNG CHẢY NƯỚC", className="fw-bold text-white mb-3"),
                         html.P(
-                            "Giải pháp hỗ trợ tưới tiêu thông minh, giúp nông dân tối ưu nguồn nước, "
-                            "dự báo lưu lượng và ra quyết định hiệu quả cho sản xuất nông nghiệp bền vững.",
+                            "Giải pháp giám sát thời gian thực và dự báo lưu lượng nước, giúp tối ưu nguồn nước "
+                            "và hỗ trợ ra quyết định cho quản lý nguồn nước và nông nghiệp bền vững.",
                             className="text-light mb-4"
                         ),
                     ],

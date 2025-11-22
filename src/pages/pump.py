@@ -233,9 +233,11 @@ layout = html.Div([
         ], className="mb-4 align-items-center"),
 
         dbc.Row(id="pump-cards-container", className="pump-cards-grid"),
-
-        dcc.Store(id='pump-data-store'),
-        dcc.Store(id='pump-delete-id'),
+    dcc.Store(id='pump-data-store'),
+    dcc.Store(id='pump-delete-id'),
+    # Pagination stores for pump page
+    dcc.Store(id='pump-page-store', data={'page': 1, 'limit': 8}),
+    dcc.Store(id='pump-pagination-store', data={'max': 1}),
         dcc.Interval(id='pump-interval', interval=5*1000, n_intervals=0),
 
         dbc.Modal([
@@ -293,6 +295,7 @@ layout = html.Div([
         ], id='pump-memory-modal', is_open=False, centered=True)
         ,
         dcc.Store(id='pump-memory-page-store', data={'page': 1, 'limit': 5, 'total': 0, 'ma_id': None}),
+    html.Div(className='pagination-footer', children=[html.Div(id='pump-pagination'), html.Div(id='pump-total', className='pt-2 total-text')], style={"margin-bottom": "20px"}),
 
     ], fluid=True, style={"padding":"20px 40px"})
 ], className='page-container', style={"paddingTop": "5px"})
@@ -301,6 +304,8 @@ layout = html.Div([
 @callback(
     [
         Output('pump-data-store', 'data', allow_duplicate=True),
+        Output('pump-pagination-store', 'data'),
+        Output('pump-total', 'children'),
         Output('total-pumps', 'children'),
         Output('running-pumps', 'children'),
         Output('stopped-pumps', 'children'),
@@ -308,17 +313,30 @@ layout = html.Div([
     ],
     [Input('pump-interval', 'n_intervals'),
      Input('pump-date-picker', 'date')],
-    [State('session-store', 'data')],
+    [State('session-store', 'data'), State('pump-page-store', 'data')],
     prevent_initial_call='initial_duplicate'
 )
-def load_pumps(n_intervals, selected_date, session_data):
+def load_pumps(n_intervals, selected_date, session_data, page_store):
     token = None
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
     try:
-        data = list_pumps(limit=50, offset=0, token=token)
+        # use pagination info if available
+        page = 1
+        limit = 8
+        if page_store and isinstance(page_store, dict):
+            try:
+                page = int(page_store.get('page', 1) or 1)
+                limit = int(page_store.get('limit', 8) or 8)
+            except Exception:
+                page, limit = 1, 8
+        offset = (page - 1) * limit
+        data = list_pumps(limit=limit, offset=offset, token=token)
         if isinstance(data, dict):
             pumps = data.get('data', [])
+            total_from_api = int(data.get('total') or len(pumps))
+            max_pages = max(1, (total_from_api + limit - 1) // limit) if limit > 0 else 1
+            pagination_meta = {'max': max_pages}
             current_date = selected_date if selected_date else datetime.date.today().isoformat()
             
             for pump in pumps:
@@ -366,14 +384,21 @@ def load_pumps(n_intervals, selected_date, session_data):
                     pump['do_am'] = 0
                     pump['thoi_gian_cap_nhat'] = None
 
-            total = len(pumps)
+            total = total_from_api
             running = sum(1 for p in pumps if p.get('trang_thai', False))
             maintenance = sum(1 for p in pumps if p.get('che_do', 0) == 2)
             stopped = total - running - maintenance
-            return [data, str(total), str(running), str(stopped), str(maintenance)]
-        return [{'data': []}, "0", "0", "0", "0"]
+            # pump-total text similar to sensor page
+            if total > 0:
+                start = (page - 1) * limit + 1
+                end = min(page * limit, total)
+                total_text = f'{start}-{end} trong tổng số {total}'
+            else:
+                total_text = f'0 trong tổng số 0'
+            return [data, pagination_meta, total_text, str(total), str(running), str(stopped), str(maintenance)]
+        return [{'data': []}, {'max': 1}, '0 trong tổng số 0', "0", "0", "0", "0"]
     except Exception as e:
-        return [{'data': []}, "0", "0", "0", "0"]
+        return [{'data': []}, {'max': 1}, '0 trong tổng số 0', "0", "0", "0", "0"]
 
 @callback(
     Output('pump-cards-container', 'children'),
@@ -413,7 +438,7 @@ def update_pump_cards(data, filter_che_do, filter_trang_thai):
 
 
 @callback(
-    [Output('pump-modal', 'is_open'), Output('pump-modal-title', 'children'), Output('pump-edit-id', 'data'), Output('pump-ten', 'value'), Output('pump-mo-ta', 'value'), Output('pump-che-do', 'value'), Output('pump-trang-thai', 'value')],
+    [Output('pump-modal', 'is_open', allow_duplicate=True), Output('pump-modal-title', 'children'), Output('pump-edit-id', 'data'), Output('pump-ten', 'value'), Output('pump-mo-ta', 'value'), Output('pump-che-do', 'value'), Output('pump-trang-thai', 'value'), Output('pump-save', 'children')],
     [Input('open-add-pump', 'n_clicks'), Input({'type': 'edit-pump', 'index': dash.ALL}, 'n_clicks'), Input('pump-cancel', 'n_clicks')],
     [State('pump-data-store', 'data')],
     prevent_initial_call=True
@@ -427,7 +452,7 @@ def open_pump_modal(n_add, edit_clicks, n_cancel, store):
     if not trig_value:
         raise PreventUpdate
     if btn == 'open-add-pump':
-        return True, 'Thêm máy bơm', None, '', '', 0, False
+        return True, 'Thêm máy bơm', None, '', '', 0, False, 'Thêm'
 
     if 'edit-pump' in btn:
         try:
@@ -443,20 +468,20 @@ def open_pump_modal(n_add, edit_clicks, n_cancel, store):
             if not p:
                 raise PreventUpdate
                 
-            return True, 'Sửa máy bơm', idx, p.get('ten_may_bom'), p.get('mo_ta'), p.get('che_do'), p.get('trang_thai')
+            return True, 'Sửa máy bơm', idx, p.get('ten_may_bom'), p.get('mo_ta'), p.get('che_do'), p.get('trang_thai'), 'Lưu'
         except Exception:
             raise PreventUpdate
             
-    return False, '', None, '', '', 0, False
+    return False, '', None, '', '', 0, False, ''
 
 
 @callback(
     [Output('pump-data-store', 'data', allow_duplicate=True), Output('pump-modal', 'is_open', allow_duplicate=True)],
     [Input('pump-save', 'n_clicks')],
-    [State('pump-edit-id', 'data'), State('pump-ten', 'value'), State('pump-mo-ta', 'value'), State('pump-ma-iot', 'value'), State('pump-che-do', 'value'), State('pump-trang-thai', 'value'), State('pump-data-store', 'data'), State('session-store', 'data')],
+    [State('pump-edit-id', 'data'), State('pump-ten', 'value'), State('pump-mo-ta', 'value'), State('pump-che-do', 'value'), State('pump-trang-thai', 'value'), State('pump-data-store', 'data'), State('session-store', 'data')],
     prevent_initial_call=True
 )
-def save_pump(n_save, edit_id, ten, mo_ta, ma_iot, che_do, trang_thai, store, session_data):
+def save_pump(n_save, edit_id, ten, mo_ta, che_do, trang_thai, store, session_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
@@ -477,7 +502,7 @@ def save_pump(n_save, edit_id, ten, mo_ta, ma_iot, che_do, trang_thai, store, se
         else:
             create_pump(payload, token=token)
 
-        data = list_pumps(limit=20, offset=0, token=token)
+        data = list_pumps(limit=8, offset=0, token=token)
         return data, False
 
     raise PreventUpdate
@@ -519,7 +544,7 @@ def perform_delete(n_confirm, delete_id, session_data):
     if session_data and isinstance(session_data, dict):
         token = session_data.get('token')
     success, msg = delete_pump(delete_id, token=token)
-    data = list_pumps(limit=20, offset=0, token=token)
+    data = list_pumps(limit=8, offset=0, token=token)
     return data, False, False
 
 
@@ -845,7 +870,7 @@ def handle_pump_pagination_click(page_clicks, prev_clicks, next_clicks, current,
         obj = json.loads(pid)
     except Exception:
         raise PreventUpdate
-    data = current or {'page': 1, 'limit': 20}
+    data = current or {'page': 1, 'limit': 8}
     max_pages = 1
     try:
         if pagination_meta and isinstance(pagination_meta, dict):

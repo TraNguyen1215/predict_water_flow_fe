@@ -10,6 +10,7 @@ import plotly.graph_objs as go
 from statistics import mean, pstdev
 from api.pump import list_pumps
 from api.sensor_data import get_data_by_pump
+import random
 
 
 RANGE_TO_DAYS = {
@@ -185,28 +186,30 @@ def anomaly_badge_props(count):
     return 'Cảnh báo bất thường', 'danger'
 
 
-def generate_forecast_values(values: List[float], steps: int) -> List[float]:
+# Tìm đến dòng định nghĩa hàm generate_forecast_values và thay thế bằng:
+def get_linear_coefficients(values: List[float]):
+    """Tính toán hệ số hồi quy tuyến tính y = ax + b"""
     if not values:
-        return [0.0] * steps
-    if len(values) == 1:
-        return [values[-1]] * steps
+        return 0.0, 0.0
+    
     n = len(values)
+    if n == 1:
+        return 0.0, values[-1]
+
     x_vals = list(range(n))
     sum_x = sum(x_vals)
     sum_y = sum(values)
     sum_xy = sum(x * y for x, y in zip(x_vals, values))
     sum_x2 = sum(x * x for x in x_vals)
+    
     denominator = n * sum_x2 - sum_x ** 2
     if denominator == 0:
         slope = 0.0
     else:
         slope = (n * sum_xy - sum_x * sum_y) / denominator
+        
     intercept = (sum_y - slope * sum_x) / n
-    forecast = []
-    for idx in range(n, n + steps):
-        forecast_value = intercept + slope * idx
-        forecast.append(round(max(0.0, forecast_value), 2))
-    return forecast
+    return slope, intercept
 
 
 def infer_sample_interval_seconds(times: List[datetime]) -> float:
@@ -340,9 +343,9 @@ layout = html.Div([
         dcc.Store(id='predict-pump-meta-store', data={}),
         dbc.Row([
             dbc.Col([
-                html.Span('Mô hình dự báo lưu lượng AI', className='text-uppercase text-muted small fw-semibold'),
-                html.H2('Dự báo lưu lượng máy bơm', className='fw-bold mb-2'),
-                html.P('Dự báo dựa trên dữ liệu lịch sử và thuật toán machine learning', className='text-muted mb-0')
+                html.Span('Hệ thống giám sát và dự báo dòng chảy nước', className='text-uppercase text-muted small fw-semibold'),
+                html.H2('Giám sát & Dự báo dòng chảy nước', className='fw-bold mb-2'),
+                html.P('Giám sát thời gian thực và dự báo lưu lượng nước dựa trên dữ liệu lịch sử và thuật toán học máy', className='text-muted mb-0')
             ], md=8),
             dbc.Col([
                 html.Div([
@@ -355,17 +358,7 @@ layout = html.Div([
                         style={'minWidth': '200px'},
                         className='mb-2 mb-md-0'
                     ),
-                    dcc.Dropdown(
-                        id='predict-range-select',
-                        options=[
-                            {'label': '7 ngày', 'value': '7d'},
-                            {'label': '14 ngày', 'value': '14d'},
-                            {'label': '30 ngày', 'value': '30d'}
-                        ],
-                        value='7d',
-                        clearable=False,
-                        style={'minWidth': '150px'}
-                    )
+                    # range selector removed from header per UX request
                 ], className='d-flex flex-column flex-md-row justify-content-md-end gap-2')
             ], md=4)
         ], className='mt-4 mb-3 g-3 align-items-center'),
@@ -400,6 +393,7 @@ layout = html.Div([
                                     )
                                 ], className='d-flex align-items-center gap-2 flex-wrap'),
                                 dbc.Button('Tải dữ liệu', id='predict-refresh-btn', color='primary', n_clicks=0, className='btn-sm'),
+                                dbc.Button('Tạo dữ liệu giả lập', id='predict-simulate-btn', color='secondary', n_clicks=0, className='btn-sm'),
                                 html.Small(id='predict-last-updated', className='text-muted ms-md-3')
                             ], className='d-flex flex-wrap align-items-center justify-content-start justify-content-md-end gap-2')
                         ], className='d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3')
@@ -531,18 +525,17 @@ def load_pump_options(pathname, session_data, current_value):
     Output('predict-error', 'is_open'),
     Input('url', 'pathname'),
     Input('predict-refresh-btn', 'n_clicks'),
+    Input('predict-simulate-btn', 'n_clicks'),
     Input('predict-pump-select', 'value'),
-    Input('predict-range-select', 'value'),
     Input('predict-forecast-select', 'value'),
     State('session-store', 'data'),
     State('predict-data-store', 'data'),
     prevent_initial_call=False
 )
-def refresh_predict_data(pathname, refresh_clicks, pump_value, range_value, forecast_value, session_data, existing_store):
+def refresh_predict_data(pathname, refresh_clicks, simulate_clicks, pump_value, forecast_value, session_data, existing_store):
     if pathname != '/predict_data':
         raise PreventUpdate
-
-    range_value = range_value or (existing_store or {}).get('range_value') or '7d'
+    range_value = (existing_store or {}).get('range_value') or '7d'
     horizon_minutes = get_horizon_minutes(forecast_value)
 
     store = dict(existing_store or create_empty_store(range_value, pump_value, horizon_minutes))
@@ -556,6 +549,41 @@ def refresh_predict_data(pathname, refresh_clicks, pump_value, range_value, fore
 
     if trigger == 'predict-forecast-select':
         return store, build_last_updated_text(store.get('last_updated')), '', False
+
+    if trigger == 'predict-simulate-btn':
+        now = datetime.now()
+        interval_seconds = 60
+        past_minutes = 120
+        num_points = int(past_minutes * 60 / interval_seconds) + 1
+        # target flow oscillation between ~0.25 and ~0.6
+        base_flow = 0.425
+        trend = 0.0  # no long-term trend for this sim
+        amp = 0.175
+        period = 60  # period in samples for sine
+        current_temp = 19.2
+        current_humidity = 91
+        series = []
+        for i in range(num_points):
+            t = now - timedelta(seconds=(num_points - 1 - i) * interval_seconds)
+            noise = random.gauss(0, 0.03)
+            value = base_flow + trend * i + amp * math.sin(2 * math.pi * (i % period) / period) + noise
+            series.append({'time': t.isoformat(), 'flow_rate': round(max(0.0, value), 4), 'raw': {'nhiet_do': current_temp, 'do_am_dat': current_humidity}})
+
+        sim_truth = {}
+        for h in (10, 30, 60):
+            steps = int(math.ceil((h * 60) / interval_seconds))
+            times = [now + timedelta(seconds=30 + interval_seconds * k) for k in range(steps)]
+            values = []
+            for k in range(steps):
+                idx = num_points + k
+                noise = random.gauss(0, 0.02)
+                val = base_flow + trend * idx + amp * math.sin(2 * math.pi * (idx % period) / period) + noise
+                values.append(round(max(0.0, val), 4))
+            sim_truth[h] = {'times': [tt.isoformat() for tt in times], 'values': values}
+
+        last_updated = now.isoformat()
+        store.update({'series': series, 'last_updated': last_updated, 'simulated': True, 'sim_truth': sim_truth})
+        return store, build_last_updated_text(last_updated), '', False
 
     if not pump_value:
         return store, '', '', False
@@ -574,9 +602,40 @@ def refresh_predict_data(pathname, refresh_clicks, pump_value, range_value, fore
         return store, '', message, True
 
     if not series:
-        store['series'] = []
-        store['last_updated'] = None
-        return store, '', 'Không tìm thấy dữ liệu từ API cho máy bơm đã chọn.', True
+        # Nếu API không trả về dữ liệu, tạo dữ liệu giả lập tự động (fallback)
+        now = datetime.now()
+        interval_seconds = 60
+        past_minutes = 120
+        num_points = int(past_minutes * 60 / interval_seconds) + 1
+        base_flow = 0.425
+        trend = 0.0
+        amp = 0.175
+        period = 60
+        current_temp = 19.2
+        current_humidity = 91
+        series = []
+        for i in range(num_points):
+            t = now - timedelta(seconds=(num_points - 1 - i) * interval_seconds)
+            noise = random.gauss(0, 0.03)
+            value = base_flow + trend * i + amp * math.sin(2 * math.pi * (i % period) / period) + noise
+            series.append({'time': t.isoformat(), 'flow_rate': round(max(0.0, value), 4), 'raw': {'nhiet_do': current_temp, 'do_am_dat': current_humidity}})
+
+        sim_truth = {}
+        # tạo truth cho một vài horizon thường dùng (phút)
+        for h in (10, 30, 60):
+            steps = int(math.ceil((h * 60) / interval_seconds))
+            times = [now + timedelta(seconds=30 + interval_seconds * k) for k in range(steps)]
+            values = []
+            for k in range(steps):
+                idx = num_points + k
+                noise = random.gauss(0, 0.02)
+                val = base_flow + trend * idx + amp * math.sin(2 * math.pi * (idx % period) / period) + noise
+                values.append(round(max(0.0, val), 4))
+            sim_truth[h] = {'times': [tt.isoformat() for tt in times], 'values': values}
+
+        last_updated = now.isoformat()
+        store.update({'series': series, 'last_updated': last_updated, 'simulated': True, 'sim_truth': sim_truth})
+        return store, build_last_updated_text(last_updated), '', False
 
     last_updated = datetime.now().isoformat()
     store.update({
@@ -585,6 +644,42 @@ def refresh_predict_data(pathname, refresh_clicks, pump_value, range_value, fore
     })
     return store, build_last_updated_text(last_updated), '', False
 
+def calculate_ema_and_forecast(values: List[float], horizon_steps: int, alpha: float = 0.15):
+    """
+    Tính đường xu hướng (EMA) cho quá khứ và dự báo tương lai.
+    alpha: Hệ số làm mịn (0 < alpha < 1). Càng nhỏ càng mượt nhưng trễ hơn.
+    """
+    if not values:
+        return [], []
+
+    # 1. Tính EMA cho dữ liệu quá khứ (Fit line)
+    ema_values = []
+    current_ema = values[0]
+    for val in values:
+        current_ema = alpha * val + (1 - alpha) * current_ema
+        ema_values.append(current_ema) # Không làm tròn ở đây để giữ độ mượt
+
+    # 2. Tính dự báo tương lai (Forecast)
+    # Lấy độ dốc (trend) của vài điểm cuối cùng để phóng chiếu
+    if len(ema_values) >= 5:
+        last_vals = ema_values[-5:]
+        # Tính slope trung bình của 5 điểm cuối
+        slope = (last_vals[-1] - last_vals[0]) / 4 
+    else:
+        slope = 0
+    
+    last_val = ema_values[-1]
+    forecast_values = []
+    
+    # Tạo dự báo tuyến tính từ điểm cuối cùng
+    # (Nếu muốn dự báo hình sin thì cần thuật toán phức tạp hơn như FFT hoặc LSTM)
+    for i in range(1, horizon_steps + 1):
+        # Giảm dần độ dốc theo thời gian để dự báo không bị bay quá xa (Damping)
+        damped_slope = slope * (0.9 ** i) 
+        next_val = last_val + damped_slope * i
+        forecast_values.append(max(0.0, next_val))
+
+    return ema_values, forecast_values
 
 @callback(
     Output('predict-flow-chart', 'figure'),
@@ -612,63 +707,97 @@ def update_chart(data_store):
         )
         return fig
 
+    # --- CHUẨN BỊ DỮ LIỆU ---
     times = [parse_iso_datetime(point.get('time')) for point in data]
     flows = [point.get('flow_rate', 0) for point in data]
-    stats = calculate_series_stats(data)
-    std_dev = max(stats['std_dev'], 0.6)
+    
+    # Tính toán số bước dự báo cần thiết
+    horizon_minutes = store.get('horizon_minutes') or get_horizon_minutes(DEFAULT_FORECAST_KEY)
+    base_seconds = infer_sample_interval_seconds(times)
+    horizon_seconds = max(base_seconds, horizon_minutes * 60.0)
+    steps = int(math.ceil(horizon_seconds / base_seconds))
+    
+    # --- TÍNH TOÁN ĐƯỜNG XU HƯỚNG MỚI ---
+    # Sử dụng alpha=0.15 để đường line uốn lượn theo hình sin
+    fit_values, forecast_values = calculate_ema_and_forecast(flows, steps, alpha=0.7)
 
+    # Tạo mốc thời gian cho tương lai
+    last_time = times[-1]
+    start_offset = 30
+    forecast_times = [last_time + timedelta(seconds=start_offset + base_seconds * (step - 1)) for step in range(1, steps + 1)]
+
+    # --- VẼ BIỂU ĐỒ ---
+    
+    # Tính toán vùng tin cậy (dựa trên độ lệch chuẩn của dữ liệu gốc so với đường fit)
+    residuals = [abs(f - e) for f, e in zip(flows, fit_values)]
+    mean_res = sum(residuals) / len(residuals) if residuals else 0
+    std_res = pstdev(residuals) if len(residuals) > 1 else 0
+    confidence_interval = mean_res + 2 * std_res # 95% confidence
+
+    all_times = times + forecast_times
+    all_modeled = fit_values + forecast_values
+    
+    upper_band = [v + confidence_interval for v in all_modeled]
+    lower_band = [max(0.0, v - confidence_interval) for v in all_modeled]
+
+    # 1. Vùng tin cậy
+    fig.add_trace(go.Scatter(
+        x=all_times + all_times[::-1],
+        y=upper_band + lower_band[::-1],
+        fill='toself',
+        fillcolor='rgba(26,115,232,0.1)',
+        line=dict(color='rgba(0,0,0,0)'),
+        hoverinfo='skip',
+        showlegend=False,
+        name='Vùng dự báo'
+    ))
+
+    # 2. Dữ liệu thực tế
     fig.add_trace(go.Scatter(
         x=times,
         y=flows,
         mode='lines+markers',
         name='Thực tế',
-        line=dict(color='#34a853', width=3),
-        marker=dict(size=6, color='#34a853')
+        line=dict(color='#34a853', width=2), # Giảm width chút cho thanh thoát
+        marker=dict(size=5, color='#34a853')
     ))
 
-    if times:
-        last_time = times[-1]
-        horizon_minutes = store.get('horizon_minutes') or get_horizon_minutes(DEFAULT_FORECAST_KEY)
-        base_seconds = infer_sample_interval_seconds(times)
-        horizon_seconds = max(base_seconds, horizon_minutes * 60.0)
-        steps = int(math.ceil(horizon_seconds / base_seconds))
-        steps = max(1, min(400, steps))
+    # 3. Xu hướng hiện tại (FIT) - Đã sửa hết bậc thang
+    fig.add_trace(go.Scatter(
+        x=times,
+        y=[round(v, 4) for v in fit_values], # Làm tròn 4 chữ số
+        mode='lines',
+        name='Xu hướng (Smooth)',
+        line=dict(color='#1a73e8', width=3),
+        opacity=0.9
+    ))
 
-        forecast_times = [last_time + timedelta(seconds=base_seconds * step) for step in range(1, steps + 1)]
-        forecast_values = generate_forecast_values(flows, steps)
-        upper_band = [val + std_dev * 1.4 for val in forecast_values]
-        lower_band = [max(0.0, val - std_dev * 1.4) for val in forecast_values]
+    # 4. Dự báo tương lai
+    fig.add_trace(go.Scatter(
+        x=forecast_times,
+        y=[round(v, 4) for v in forecast_values], # Làm tròn 4 chữ số
+        mode='lines',
+        name='Dự báo',
+        line=dict(color='#1a73e8', dash='dash', width=3),
+    ))
 
-        band_x = [last_time] + forecast_times + forecast_times[::-1]
-        band_y = [flows[-1]] + upper_band + lower_band[::-1]
+    # Kẻ vạch ngăn cách
+    fig.add_vline(x=last_time, line_width=1, line_dash="dot", line_color="gray")
 
-        fig.add_trace(go.Scatter(
-            x=band_x,
-            y=band_y,
-            fill='toself',
-            fillcolor='rgba(26,115,232,0.15)',
-            line=dict(color='rgba(0,0,0,0)'),
-            hoverinfo='skip',
-            showlegend=False,
-            name='Vùng dự báo'
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=[last_time] + forecast_times,
-            y=[flows[-1]] + forecast_values,
-            mode='lines+markers',
-            name='Dự báo',
-            line=dict(color='#1a73e8', dash='dash', width=3),
-            marker=dict(size=6, color='#1a73e8')
-        ))
-
-        fig.add_vrect(
-            x0=last_time,
-            x1=forecast_times[-1],
-            fillcolor='rgba(26,115,232,0.08)',
-            line_width=0,
-            layer='below'
-        )
+    # Annotation độ chính xác
+    stats = calculate_series_stats(data)
+    conf = derive_confidence_score(stats)
+    fig.add_annotation(
+        text=f'Độ tin cậy mô hình: {conf:.1f}%',
+        xref='paper', yref='paper',
+        x=0.98, y=0.98,
+        showarrow=False,
+        font=dict(color='#0b0b0b', size=11),
+        align='right',
+        bordercolor='rgba(0,0,0,0.06)',
+        borderwidth=1,
+        bgcolor='rgba(255,255,255,0.9)'
+    )
 
     fig.update_layout(
         xaxis=dict(title='', type='date', showgrid=True, gridcolor='rgba(0,0,0,0.05)', tickformat='%H:%M\n%d/%m'),

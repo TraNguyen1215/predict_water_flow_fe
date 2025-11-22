@@ -30,8 +30,28 @@ layout = html.Div([
                             className='mt-3'
                         )
                     ])
-                ])
-            ], lg=5, className='mb-4'),
+                ]),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H6('Câu hỏi thường gặp')),
+                        dbc.CardBody([
+                            html.H6('1. Tôi cần chuẩn bị gì trước khi nạp?', className='fw-semibold'),
+                            html.P('- Firmware định dạng .bin phù hợp với bo mạch ESP của bạn.'),
+                            html.P('- Dây cáp USB dữ liệu (không phải chỉ sạc).'),
+                            html.P('- Trình duyệt hỗ trợ Web Serial (Chrome, Edge, Opera).'),
+                            html.H6('2. Sau khi nạp xong có cần làm gì thêm?', className='fw-semibold mt-3'),
+                            html.P('Khởi động lại thiết bị hoặc nhấn nút reset, đảm bảo nguồn cấp ổn định trong suốt quá trình.'),
+                            html.H6('3. Nếu quá trình nạp thất bại?', className='fw-semibold mt-3'),
+                            html.Ul([
+                                html.Li('Kiểm tra lại cáp USB và cổng kết nối.'),
+                                html.Li('Đóng các ứng dụng đang sử dụng Serial (Arduino IDE, VS Code, ...).'),
+                                html.Li('Đặt bo mạch vào chế độ bootloader (nhấn giữ nút BOOT nếu cần).'),
+                                html.Li('Thử giảm baudrate hoặc dùng cáp khác.')
+                            ])
+                        ])
+                    ])
+                ], style={'marginTop': '20px'})
+            ], lg=5, className='mb-4 h-100'),
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader(html.H5('Công cụ nạp ESP trực tiếp trên trình duyệt')),
@@ -100,30 +120,8 @@ layout = html.Div([
                         ])
                     ])
                 ])
-            ], lg=7, className='mb-4')
+            ], lg=7, className='mb-4 h-100')
         ]),
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader(html.H6('Câu hỏi thường gặp')),
-                    dbc.CardBody([
-                        html.H6('1. Tôi cần chuẩn bị gì trước khi nạp?', className='fw-semibold'),
-                        html.P('- Firmware định dạng .bin phù hợp với bo mạch ESP của bạn.'),
-                        html.P('- Dây cáp USB dữ liệu (không phải chỉ sạc).'),
-                        html.P('- Trình duyệt hỗ trợ Web Serial (Chrome, Edge, Opera).'),
-                        html.H6('2. Sau khi nạp xong có cần làm gì thêm?', className='fw-semibold mt-3'),
-                        html.P('Khởi động lại thiết bị hoặc nhấn nút reset, đảm bảo nguồn cấp ổn định trong suốt quá trình.'),
-                        html.H6('3. Nếu quá trình nạp thất bại?', className='fw-semibold mt-3'),
-                        html.Ul([
-                            html.Li('Kiểm tra lại cáp USB và cổng kết nối.'),
-                            html.Li('Đóng các ứng dụng đang sử dụng Serial (Arduino IDE, VS Code, ...).'),
-                            html.Li('Đặt bo mạch vào chế độ bootloader (nhấn giữ nút BOOT nếu cần).'),
-                            html.Li('Thử giảm baudrate hoặc dùng cáp khác.')
-                        ])
-                    ])
-                ])
-            ])
-        ], className='mt-4')
     ], fluid=True, className='esp-flash-container'),
     html.Script(src='/assets/js/esp_flasher.js', type='module', defer=True),
     html.Script("""

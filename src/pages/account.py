@@ -72,7 +72,7 @@ notifications_content = dbc.Card([
             ]),
         ])
     ])
-], className="shadow-sm")
+], className="shadow-sm dark-card")
 
 appearance_content = dbc.Card([
     dbc.CardHeader([
@@ -110,7 +110,7 @@ appearance_content = dbc.Card([
             ]),
         ])
     ])
-], className="shadow-sm")
+], className="shadow-sm dark-card")
 
 def format_relative_time(iso_ts: str) -> str:
     if not iso_ts:
@@ -200,7 +200,7 @@ layout = html.Div([
                             ], href="/account#settings", className="mb-2"),
                         ], vertical=True, pills=True)
                     ])
-                ], className="shadow-sm")
+                ], className="shadow-sm dark-card")
             ], md=4, className="mb-4"),
             
             dbc.Col([
@@ -322,7 +322,7 @@ layout = html.Div([
                         ])
                         ]),
                     ])
-                ], id='account-main-card', className="shadow-sm mb-4"),
+                ], id='account-main-card', className="shadow-sm mb-4 dark-card"),
                 
                 dbc.Card([
                     dbc.CardHeader([
@@ -354,7 +354,7 @@ layout = html.Div([
                             ])
                         ])
                     ])
-                ], id='security', className="shadow-sm mb-4", style={'display': 'none'}),
+                ], id='security', className="shadow-sm mb-4 dark-card", style={'display': 'none'}),
 
                 html.Div([
                     notifications_content,
@@ -396,7 +396,7 @@ layout = html.Div([
                             ], md=4),
                         ])
                     ])
-                ], id='stats-card', className="shadow-sm")
+                ], id='stats-card', className="shadow-sm dark-card")
             ], md=8)
         ])
     ], fluid=True, className="py-4")

@@ -1958,6 +1958,10 @@ textarea {
     transform: translateY(-4px);
 }
 
+/* .pump-card .card-body{
+    padding: 10px;
+} */
+
 .pump-detail {
     margin-bottom: 0.65rem;
     display: flex;
