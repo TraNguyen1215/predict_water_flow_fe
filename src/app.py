@@ -28,9 +28,12 @@ server.config['SECRET_KEY'] = os.urandom(24)
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
+    dcc.Store(id='pump-detail-store', storage_type='memory'),
     dcc.Interval(id='token-check-interval', interval=30*1000, n_intervals=0),
     html.Div(id='page-content'),
-    html.Div(id='app-footer', children=create_footer())
+    html.Div(id='app-footer', children=create_footer()),
+    # Placeholder elements for callbacks that expect these ids to exist in the root layout
+    html.Div(id='pump-control-result', style={'display': 'none'})
 ])
 
 @app.callback(

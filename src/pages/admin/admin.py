@@ -464,13 +464,60 @@ def load_admin_dashboard(pathname, session_data):
         )
     ], className='admin-chart-row g-3 mt-1')
 
+    # Nếu không có dữ liệu biểu đồ chi tiết, tạo biểu đồ tóm tắt (bar) hiển thị tổng và số đang hoạt động
+    pump_total = total_pumps or len(pump_items)
+    pump_active = running_pumps or 0
+
+    try:
+        if not sensor_df.empty and 'is_running' in sensor_df.columns:
+            sensor_active = int(sensor_df['is_running'].sum())
+        else:
+            sensor_active = sum(1 for it in sensor_items if _is_truthy(it.get('trang_thai') or it.get('is_running') or it.get('luu_luong_nuoc')))
+    except Exception:
+        sensor_active = 0
+
+    sensor_total = total_sensors or len(sensor_items)
+
+    pump_summary_fig = None
+    sensor_summary_fig = None
+    try:
+        pump_summary_fig = px.bar(
+            x=['Máy bơm đã thêm', 'Máy bơm đang hoạt động'],
+            y=[pump_total, pump_active],
+            color=['Tổng', 'Đang hoạt động'],
+            title='Tổng quan máy bơm',
+            color_discrete_sequence=[PRIMARY_BLUE, BLUE_SCALE[1]]
+        )
+        pump_summary_fig.update_yaxes(title_text='Số lượng')
+        pump_summary_fig.update_layout(showlegend=False)
+    except Exception:
+        pump_summary_fig = None
+
+    try:
+        sensor_summary_fig = px.bar(
+            x=['Cảm biến đã thêm', 'Cảm biến đang hoạt động'],
+            y=[sensor_total, sensor_active],
+            color=['Tổng', 'Đang hoạt động'],
+            title='Tổng quan cảm biến',
+            color_discrete_sequence=[BLUE_SCALE[2], BLUE_SCALE[3]]
+        )
+        sensor_summary_fig.update_yaxes(title_text='Số lượng')
+        sensor_summary_fig.update_layout(showlegend=False)
+    except Exception:
+        sensor_summary_fig = None
+
+    # Nếu có fig chi tiết, ưu tiên hiển thị; nếu không, hiển thị biểu đồ tóm tắt
     charts_bottom = dbc.Row([
         dbc.Col(
-            dbc.Card(dbc.CardBody([_graph_or_alert(pump_activity_fig, 'Không có dữ liệu hoạt động máy bơm.')])),
+            dbc.Card(dbc.CardBody([
+                dcc.Graph(figure=pump_activity_fig, config={'displayModeBar': False}) if pump_activity_fig is not None else dcc.Graph(figure=pump_summary_fig, config={'displayModeBar': False})
+            ])),
             md=12, lg=6
         ),
         dbc.Col(
-            dbc.Card(dbc.CardBody([_graph_or_alert(sensor_fig, 'Không có dữ liệu cảm biến.')])),
+            dbc.Card(dbc.CardBody([
+                dcc.Graph(figure=sensor_fig, config={'displayModeBar': False}) if sensor_fig is not None else dcc.Graph(figure=sensor_summary_fig, config={'displayModeBar': False})
+            ])),
             md=12, lg=6
         )
     ], className='admin-chart-row g-3 mt-1')

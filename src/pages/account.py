@@ -340,11 +340,20 @@ layout = html.Div([
                             dbc.Row([
                                 dbc.Col([
                                     dbc.Label("Mật khẩu hiện tại", className="fw-bold"),
-                                    dbc.Input(id='current-password', type='password', placeholder='Nhập mật khẩu hiện tại', className="mb-3"),
+                                    html.Div(className='pw-input-wrapper mb-3', children=[
+                                        dbc.Input(id='current-password', type='password', placeholder='Nhập mật khẩu hiện tại'),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'current-password'})
+                                    ]),
                                     dbc.Label("Mật khẩu mới", className="fw-bold"),
-                                    dbc.Input(id='new-password', type='password', placeholder='Nhập mật khẩu mới', className="mb-3"),
+                                    html.Div(className='pw-input-wrapper mb-3', children=[
+                                        dbc.Input(id='new-password', type='password', placeholder='Nhập mật khẩu mới'),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'new-password'})
+                                    ]),
                                     dbc.Label("Xác nhận mật khẩu mới", className="fw-bold"),
-                                    dbc.Input(id='confirm-new-password', type='password', placeholder='Nhập lại mật khẩu mới', className="mb-4"),
+                                    html.Div(className='pw-input-wrapper mb-4', children=[
+                                        dbc.Input(id='confirm-new-password', type='password', placeholder='Nhập lại mật khẩu mới'),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'confirm-new-password'})
+                                    ]),
                                 ], md=6)
                             ]),
                             dbc.Row([

@@ -98,14 +98,15 @@ layout = html.Div([
                                     )
                                 ], className='col-12 col-md-6'),
                                 html.Div([
-                                    html.Div([
-                                        dbc.Checkbox(
-                                            id='esp-erase-checkbox',
-                                            value=False,
-                                            className='form-check-input'
-                                        ),
-                                        html.Label('Xóa toàn bộ flash trước khi nạp', htmlFor='esp-erase-checkbox', className='form-check-label ms-2')
-                                    ], className='form-check form-switch mt-4 mt-md-0')
+                                    dbc.Button(
+                                        'Xóa toàn bộ flash trước khi nạp',
+                                        id='esp-erase-checkbox',
+                                        color='danger',
+                                        outline=True,
+                                        size='sm',
+                                        className='mt-4 mt-md-0',
+                                        n_clicks=0
+                                    )
                                 ], className='col-12 col-md-6')
                             ], className='row g-3 align-items-center mt-2'),
                             dbc.Button('Bắt đầu nạp', id='esp-flash-btn', color='success', className='mt-3', disabled=True),

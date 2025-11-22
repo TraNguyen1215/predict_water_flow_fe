@@ -1059,6 +1059,30 @@ input[type="email"] {
     color: #071133;
 }
 
+/* Password toggle styles */
+.pw-input-wrapper {
+    position: relative;
+}
+.pw-input-wrapper .form-control,
+.pw-input-wrapper input {
+    padding-right: 2.6rem; /* room for the toggle icon */
+}
+.pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.pw-toggle:hover {
+    color: #023E73;
+}
+
 .nav-pills .nav-link {
     border-radius: 8px;
     color: var(--secondary-color);

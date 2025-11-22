@@ -61,20 +61,26 @@ layout = html.Div(
                                     ),
 
                                     dbc.Label("Mật khẩu", className="fw-bold"),
-                                    dbc.Input(
-                                        id='register-password',
-                                        type='password',
-                                        placeholder='Nhập mật khẩu',
-                                        className="mb-3 px-3 py-2"
-                                    ),
+                                    html.Div(className='pw-input-wrapper mb-3', children=[
+                                        dbc.Input(
+                                            id='register-password',
+                                            type='password',
+                                            placeholder='Nhập mật khẩu',
+                                            className="px-3 py-2"
+                                        ),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'register-password'})
+                                    ]),
 
                                     dbc.Label("Xác nhận mật khẩu", className="fw-bold"),
-                                    dbc.Input(
-                                        id='register-confirm-password',
-                                        type='password',
-                                        placeholder='Nhập lại mật khẩu',
-                                        className="mb-3 px-3 py-2"
-                                    ),
+                                    html.Div(className='pw-input-wrapper mb-3', children=[
+                                        dbc.Input(
+                                            id='register-confirm-password',
+                                            type='password',
+                                            placeholder='Nhập lại mật khẩu',
+                                            className="px-3 py-2"
+                                        ),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'register-confirm-password'})
+                                    ]),
 
                                     dbc.Row([
                                         dbc.Col(

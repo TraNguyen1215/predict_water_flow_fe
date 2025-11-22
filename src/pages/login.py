@@ -50,12 +50,15 @@ layout = html.Div(
                                     ),
 
                                     dbc.Label("Mật khẩu", className="fw-bold"),
-                                    dbc.Input(
-                                        id='login-password',
-                                        type='password',
-                                        placeholder='Nhập mật khẩu',
-                                        className="mb-3 px-3 py-2"
-                                    ),
+                                    html.Div(className='pw-input-wrapper mb-3', children=[
+                                        dbc.Input(
+                                            id='login-password',
+                                            type='password',
+                                            placeholder='Nhập mật khẩu',
+                                            className="px-3 py-2"
+                                        ),
+                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'login-password'})
+                                    ]),
 
                                     dbc.Row([
                                         dbc.Col(
@@ -199,7 +202,10 @@ def render_forgot_modal(is_open, verified):
             dbc.Label("Tên đăng nhập", className='fw-bold'),
             dbc.Input(id='forgot-username-2', type='text', value=verified, disabled=True, className='mb-2'),
             dbc.Label("Mật khẩu mới", className='fw-bold'),
-            dbc.Input(id='forgot-new-password', type='password', placeholder='Nhập mật khẩu mới', className='mb-2'),
+            html.Div(className='pw-input-wrapper mb-2', children=[
+                dbc.Input(id='forgot-new-password', type='password', placeholder='Nhập mật khẩu mới'),
+                html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'forgot-new-password'})
+            ]),
             html.Div(id='forgot-step-message')
         ])
         footer = html.Div([

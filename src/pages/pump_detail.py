@@ -181,7 +181,6 @@ def create_layout():
                 ])
             ], style={"margin-bottom": "24px"}),
             
-            dcc.Store(id='pump-detail-store', storage_type='memory'),
             dcc.Store(id='pump-detail-page-store', storage_type='memory', data={'page': 1, 'limit': 15, 'total': 0}),
             dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': None}),
             dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
