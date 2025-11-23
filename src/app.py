@@ -29,17 +29,12 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='session-store', storage_type='session'),
     dcc.Store(id='pump-detail-store', storage_type='memory'),
-    # Global store to hold the selected pump across pages (ensures callbacks targeting
-    # `selected-pump-store` always find the component in the layout)
     dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': None}),
-    # Interval used to trigger initial pump selection on pages that expect it.
-    # Placed in the root layout so callbacks referencing `initial-pump-select`
-    # always find the component regardless of the current page.
+    dcc.Store(id='pump-control-last-action', storage_type='memory', data={'mode': None, 'trang_thai': None}),
     dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1, n_intervals=0),
     dcc.Interval(id='token-check-interval', interval=30*1000, n_intervals=0),
     html.Div(id='page-content'),
     html.Div(id='app-footer', children=create_footer()),
-    # Placeholder elements for callbacks that expect these ids to exist in the root layout
     html.Div(id='pump-control-result', style={'display': 'none'})
 ])
 

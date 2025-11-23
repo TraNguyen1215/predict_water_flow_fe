@@ -182,11 +182,9 @@ def create_layout():
             ], style={"margin-bottom": "24px"}),
             
             dcc.Store(id='pump-detail-page-store', storage_type='memory', data={'page': 1, 'limit': 15, 'total': 0}),
-            dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': None}),
             dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
-            dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1, n_intervals=0),
+            
             dcc.Store(id='pump-detail-showing-details', storage_type='memory', data=False),
-            dcc.Store(id='pump-control-last-action', storage_type='memory', data={'mode': None, 'trang_thai': None}),
             
             dcc.Dropdown(id='data-filter-pump', options=[], style={'display': 'none'}),
         ], fluid=True, style={"padding": "20px 40px"})
@@ -259,41 +257,47 @@ def load_pump_detail(pathname, session_data):
         raise PreventUpdate
 
     try:
-        pump_id = int(pathname.split('/')[-1])
-    except (ValueError, IndexError):
-        return [dash.no_update, dash.no_update]
+        try:
+            pump_id = int(pathname.split('/')[-1])
+        except (ValueError, IndexError):
+            return dash.no_update, dash.no_update
 
-    token = None
-    if session_data and isinstance(session_data, dict):
-        token = session_data.get('token')
+        token = None
+        if session_data and isinstance(session_data, dict):
+            token = session_data.get('token')
 
-    
-    pump_data = get_pump(pump_id, token=token) or {}
+        pump_data = get_pump(pump_id, token=token) or {}
 
-    
-    sensors_data = list_sensors(limit=1000, token=token)
-    sensors = sensors_data.get('data', []) if sensors_data else []
+        sensors_data = list_sensors(limit=1000, token=token)
+        sensors = sensors_data.get('data', []) if sensors_data else []
 
-    
-    pump_sensors = []
-    if isinstance(pump_data, dict):
-        pump_sensors = pump_data.get('cam_bien', [])
-        if isinstance(pump_sensors, str):
-            pump_sensors = [int(x.strip()) for x in pump_sensors.split(',') if x.strip().isdigit()]
+        pump_sensors = []
+        if isinstance(pump_data, dict):
+            pump_sensors = pump_data.get('cam_bien', [])
+            if isinstance(pump_sensors, str):
+                try:
+                    pump_sensors = [int(x.strip()) for x in pump_sensors.split(',') if x.strip().isdigit()]
+                except Exception:
+                    pump_sensors = []
 
-    store = {
-        'pump_id': pump_id,
-        'pump_data': pump_data,
-        'sensors': sensors,
-        'pump_sensors': pump_sensors
-    }
-    
-    selected = {
-        'ma_may_bom': pump_data.get('ma_may_bom') or pump_id,
-        'ten_may_bom': pump_data.get('ten_may_bom') or ''
-    }
+        store = {
+            'pump_id': pump_id,
+            'pump_data': pump_data,
+            'sensors': sensors,
+            'pump_sensors': pump_sensors
+        }
 
-    return [store, selected]
+        selected = {
+            'ma_may_bom': pump_data.get('ma_may_bom') or pump_id,
+            'ten_may_bom': pump_data.get('ten_may_bom') or ''
+        }
+
+        return store, selected
+    except Exception as e:
+        # Defensive: prevent unhandled exceptions from breaking callback schema
+        import traceback
+        print(f"Error in load_pump_detail: {e}\n{traceback.format_exc()}")
+        return dash.no_update, dash.no_update
 
 
 @callback(
@@ -663,7 +667,7 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
     button_id = prop.split('.')[0] if prop else None
 
     if not store or not isinstance(store, dict):
-        return (dbc.Alert('Không có thông tin máy bơm', color='danger'), dash.no_update)
+        return (dbc.Alert('Không có thông tin máy bơm', color='danger'), dash.no_update, dash.no_update)
 
     pump_id = store.get('pump_id')
     token = None
@@ -673,7 +677,7 @@ def handle_pump_control(n_start, n_stop, mode_value, store, session_data, last_a
     
     pump = get_pump(pump_id, token=token)
     if not pump:
-        return (dbc.Alert('Không thể lấy thông tin máy bơm', color='danger'), dash.no_update)
+        return (dbc.Alert('Không thể lấy thông tin máy bơm', color='danger'), dash.no_update, dash.no_update)
 
     payload = {}
     msg = ''

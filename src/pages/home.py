@@ -265,9 +265,7 @@ layout = html.Div([
         ], className="mb-3"),
         
         html.Div(id='pump-list-container', children=[]),
-    dcc.Store(id='selected-pump-store', data={'ma_may_bom': None, 'ten_may_bom': 'Máy Bơm Nước Chính'}),
-    dcc.Store(id='pump-mode-refresh', data={'mode': None, 'ts': None}),
-        dcc.Interval(id='initial-pump-select', interval=500, max_intervals=1),
+        dcc.Store(id='pump-mode-refresh', data={'mode': None, 'ts': None}),
         
         dbc.Row([
             dbc.Col([
@@ -317,7 +315,6 @@ layout = html.Div([
                             ], md=3),
                         ], className="mb-4"),
 
-                        # Second row: rain, last on, last off, run duration
                         dbc.Row([
                             dbc.Col([
                                 dbc.Card([
@@ -1431,10 +1428,14 @@ def update_user_info(n, pathname, session_modified, session):
         Input('selected-pump-store', 'data'),
         Input('interval-component', 'n_intervals'),
     ],
-    State('session-store', 'data')
+        State('session-store', 'data'),
+        State('url', 'pathname')
 )
-def update_pump_control_panel(selected_pump, n_intervals, session):
+def update_pump_control_panel(selected_pump, n_intervals, session, pathname):
     """Refresh control panel state, button availability, and mode selection."""
+    if pathname and not (pathname == '/' or pathname.startswith('/pump')):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
     if not selected_pump or not selected_pump.get('ma_may_bom'):
         return ("Chưa chọn máy bơm", True, True, None)
 

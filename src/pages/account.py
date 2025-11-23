@@ -162,218 +162,8 @@ def format_display_time(iso_ts: str) -> str:
 
 layout = html.Div([
     create_navbar(is_authenticated=True),
-    dcc.Location(id='account-url', refresh=False),
-    
     dbc.Container([
-        dbc.Row([
-            dbc.Col([
-                html.H2([
-                    html.I(className="fas fa-user-circle me-3"),
-                    "Thông Tin Tài Khoản"
-                ], className="mb-4")
-            ], width=12)
-        ]),
-        
-        dbc.Row([
-            # Sidebar
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
-                            html.I(className="fas fa-user-circle fa-5x text-primary mb-3"),
-                            html.H4(id='profile-username', className="mb-2"),
-                            dbc.Button([html.I(className="fas fa-edit me-2"), html.Span(id='edit-account-btn-text', children="Chỉnh sửa")], id='edit-account-btn', className='mb-3 btn-edit'),
-                        ], className="text-center"),
-                        
-                        dbc.Nav([
-                            dbc.NavLink([
-                                html.I(className="fas fa-info-circle me-2"),
-                                "Thông tin cá nhân"
-                            ], href="#", className="mb-2"),
-                            dbc.NavLink([
-                                html.I(className="fas fa-lock me-2"),
-                                "Đổi mật khẩu"
-                            ], href="/account#security", className="mb-2"),
-                            dbc.NavLink([
-                                html.I(className="fas fa-cog me-2"),
-                                "Cài đặt"
-                            ], href="/account#settings", className="mb-2"),
-                        ], vertical=True, pills=True)
-                    ])
-                ], className="shadow-sm dark-card")
-            ], md=4, className="mb-4"),
-            
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5([
-                            html.I(className="fas fa-edit me-2"),
-                            html.Span(id='account-card-title-text', children="Thông Tin Tài Khoản")
-                        ], className="mb-0")
-                        ]),
-                    dbc.CardBody([
-                        dcc.Loading(
-                            id='loading-account-message',
-                            type='default',
-                            children=html.Div(id='account-message', className="mb-3")
-                        ),
-
-                        html.Div(id='account-view-container', children=[
-                            dbc.Row([
-                                dbc.Col(html.Strong("Họ và tên:"), md=4),
-                                dbc.Col(html.Span(id='view-fullname'), md=8),
-                            ], className='mb-2'),
-                            dbc.Row([
-                                dbc.Col(html.Strong("Số điện thoại:"), md=4),
-                                dbc.Col(html.Span(id='view-phone'), md=8),
-                            ], className='mb-2'),
-                            dbc.Row([
-                                dbc.Col(html.Strong("Địa chỉ:"), md=4),
-                                dbc.Col(html.Span(id='view-address'), md=8),
-                            ], className='mb-2'),
-                            dbc.Row([
-                                dbc.Col(html.Strong("Trạng thái:"), md=4),
-                                dbc.Col(html.Div(id='view-status-badge'), md=8),
-                            ], className='mb-2'),
-                            dbc.Row([
-                                dbc.Col(html.Strong("Tạo lúc:"), md=4),
-                                dbc.Col(html.Span(id='view-created'), md=8),
-                            ], className='mb-2'),
-                            dbc.Row([
-                                dbc.Col(html.Strong("Đăng nhập lần cuối:"), md=4),
-                                dbc.Col(html.Span(id='view-last-login'), md=8),
-                            ], className='mb-2'),
-                        ]),
-
-                        html.Div(id='account-form-container', style={'display': 'none'}, children=[
-                            dbc.Form([
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Họ và tên", className="fw-bold"),
-                                    dbc.Input(
-                                        id='account-fullname',
-                                        type='text',
-                                        placeholder='Nhập họ và tên',
-                                        className="mb-3"
-                                    ),
-                                ], md=6),
-                                
-                                dbc.Col([
-                                    dbc.Label("Số điện thoại", className="fw-bold"),
-                                    dbc.Input(
-                                        id='account-phone',
-                                        type='tel',
-                                        placeholder='Nhập số điện thoại',
-                                        className="mb-3"
-                                    ),
-                                ], md=6)
-                            ]),
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Địa chỉ", className="fw-bold"),
-                                    dbc.Input(
-                                        id='account-address',
-                                        type='text',
-                                        placeholder='Nhập địa chỉ',
-                                        className="mb-3"
-                                    ),
-                                ], md=6),
-                                
-                                # dbc.Col([
-                                #     dbc.Label("Trạng thái", className="fw-bold"),
-                                #     html.Div(id='account-status-display', className='mb-3'),
-                                # ], md=6)
-                            ]),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Tạo lúc", className="fw-bold"),
-                                    dbc.Input(
-                                        id='account-created',
-                                        type='text',
-                                        placeholder='',
-                                        className="mb-3",
-                                        disabled=True
-                                    ),
-                                ], md=6),
-                                
-                                dbc.Col([
-                                    dbc.Label("Đăng nhập lần cuối", className="fw-bold"),
-                                    dbc.Input(
-                                        id='account-last-login',
-                                        type='text',
-                                        placeholder='',
-                                        className="mb-3",
-                                        disabled=True
-                                    ),
-                                ], md=6)
-                            ]),
-                            
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Button(
-                                        [html.I(className="fas fa-save me-2"), "Lưu Thay Đổi"],
-                                        id='save-account-btn',
-                                        color='primary',
-                                        className="px-4"
-                                    ),
-                                ], width=12)
-                            ]),
-                        ])
-                        ]),
-                    ])
-                ], id='account-main-card', className="shadow-sm mb-4 dark-card"),
-                
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5([
-                            "Đổi mật khẩu"
-                        ], className="mb-0")
-                    ]),
-                    dbc.CardBody([
-                        dcc.Loading(
-                            id='loading-account-settings-message',
-                            type='default',
-                            children=html.Div(id='account-settings-message', className="mb-3")
-                        ),
-                        dbc.Form([
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Mật khẩu hiện tại", className="fw-bold"),
-                                    html.Div(className='pw-input-wrapper mb-3', children=[
-                                        dbc.Input(id='current-password', type='password', placeholder='Nhập mật khẩu hiện tại'),
-                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'current-password'})
-                                    ]),
-                                    dbc.Label("Mật khẩu mới", className="fw-bold"),
-                                    html.Div(className='pw-input-wrapper mb-3', children=[
-                                        dbc.Input(id='new-password', type='password', placeholder='Nhập mật khẩu mới'),
-                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'new-password'})
-                                    ]),
-                                    dbc.Label("Xác nhận mật khẩu mới", className="fw-bold"),
-                                    html.Div(className='pw-input-wrapper mb-4', children=[
-                                        dbc.Input(id='confirm-new-password', type='password', placeholder='Nhập lại mật khẩu mới'),
-                                        html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'confirm-new-password'})
-                                    ]),
-                                ], md=6)
-                            ]),
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Button(["Lưu mật khẩu"], id='save-security-settings', color='primary', className="px-4"),
-                                ], width=12)
-                            ])
-                        ])
-                    ])
-                ], id='security', className="shadow-sm mb-4 dark-card", style={'display': 'none'}),
-
-                html.Div([
-                    notifications_content,
-                    html.Br(),
-                    appearance_content
-                ], id='account-settings-container', style={'display': 'none'}),
-
-                # Statistics card removed per request ("Thống Kê Hoạt Động").
-            ], md=8)
-        ])
+        dbc.Row([dbc.Col(html.P("Quản lý thông tin tài khoản, đổi mật khẩu và cài đặt từ menu người dùng (icon góc trên bên phải)."), width=12)])
     ], fluid=True, className="py-4")
 ])
 
@@ -396,7 +186,20 @@ layout = html.Div([
 )
 def load_user_info(pathname, session_data):
     if not session_data or not session_data.get('authenticated'):
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return (
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+        )
     
     username = session_data.get('username')
     token = session_data.get('token')
