@@ -3,7 +3,7 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import session
 import os
-from pages import home, login, register, account, settings, sensor, pump, pump_detail, sensor_data, documentation, predict_data, esp_flash, planting_log
+from pages import home, login, register, account, settings, sensor, pump, pump_detail, sensor_data, documentation, predict_data, esp_flash
 from pages.admin import *
 from components.navbar import create_navbar
 from components.footer import create_footer
@@ -84,11 +84,6 @@ def display_page(pathname, session_data):
     elif pathname == '/predict_data':
         if is_authenticated and is_admin == False:
             page = predict_data.layout
-        else:
-            page = login.layout
-    elif pathname == '/planting-log':
-        if is_authenticated and is_admin == False:
-            page = planting_log.layout
         else:
             page = login.layout
     elif pathname == '/esp-flash':

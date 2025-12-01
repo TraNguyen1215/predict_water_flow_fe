@@ -181,10 +181,11 @@ layout = html.Div([
         Output('account-created', 'value'),
         Output('account-last-login', 'value')
     ],
-    Input('url', 'pathname'),
+    [Input('url', 'pathname'), Input('modal-account-info', 'is_open')],
     State('session-store', 'data')
 )
-def load_user_info(pathname, session_data):
+def load_user_info(pathname, modal_open, session_data):
+    # Nếu người dùng chưa đăng nhập thì không cập nhật gì
     if not session_data or not session_data.get('authenticated'):
         return (
             dash.no_update,
@@ -200,7 +201,23 @@ def load_user_info(pathname, session_data):
             dash.no_update,
             dash.no_update,
         )
-    
+    # Chỉ nạp lại thông tin khi truy cập trang hoặc khi modal tài khoản được mở
+    if not pathname and not modal_open:
+        return (
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+            dash.no_update,
+        )
+
     username = session_data.get('username')
     token = session_data.get('token')
     user_info = get_user_info(username, token=token)

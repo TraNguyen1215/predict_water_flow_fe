@@ -121,10 +121,23 @@ def update_user_info(ma_nguoi_dung: str, user_data: Dict[str, Any], token: Optio
         if token:
             headers['Authorization'] = f'Bearer {token}'
         resp = requests.put(_url(f'nguoi-dung/{ma_nguoi_dung}'), json=user_data, timeout=5, headers=headers)
-        data = resp.json() if resp.content else {}
+        data = None
+        try:
+            data = resp.json() if resp.content else {}
+        except Exception:
+            data = None
+
         if resp.status_code in (200, 204):
-            return True, data.get('message', 'Cập nhật thành công')
-        return False, data.get('message', data.get('error', 'Cập nhật thất bại'))
+            return True, (data.get('message') if isinstance(data, dict) else None) or 'Cập nhật thành công'
+
+        # Trả về thông tin chi tiết khi có lỗi (giúp debug 422)
+        error_msg = None
+        if isinstance(data, dict):
+            error_msg = data.get('message') or data.get('error') or json.dumps(data)
+        else:
+            error_msg = resp.text or f'Status {resp.status_code}'
+
+        return False, f'API lỗi {resp.status_code}: {error_msg}'
     except requests.RequestException as e:
         return False, f'Lỗi kết nối tới server: {e}'
 

@@ -25,7 +25,6 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                 dbc.NavItem(dbc.NavLink("Trang chủ", href="/", className="nav-link-custom", active=is_active('/'))),
                 dbc.NavItem(dbc.NavLink("Cảm biến", href="/sensor", className="nav-link-custom", active=is_active('/sensor'))),
                 dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom", active=is_active('/pump'))),
-                dbc.NavItem(dbc.NavLink("Nhật ký gieo trồng", href="/planting-log", className="nav-link-custom", active=is_active('/planting-log'))),
                 dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
                 dbc.NavItem(dbc.NavLink("Nạp ESP", href="/esp-flash", className="nav-link-custom", active=is_active('/esp-flash'))),
             ]
@@ -34,7 +33,6 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
             children=[
                 dbc.DropdownMenuItem("Thông tin tài khoản", id='nav-open-account', n_clicks=0),
                 dbc.DropdownMenuItem("Đổi mật khẩu", id='nav-open-change-password', n_clicks=0),
-                dbc.DropdownMenuItem("Cài đặt", id='nav-open-settings', n_clicks=0),
                 dbc.DropdownMenuItem(divider=True),
                 dbc.DropdownMenuItem("Tài liệu", href="/documentation"),
                 dbc.DropdownMenuItem("Đăng xuất", href="/logout")
@@ -183,6 +181,8 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
     root = html.Div([
         dcc.Location(id='account-url', refresh=False),
         navbar,
+        # spacer so sticky navbar does not overlap page content
+        html.Div(style={'height': '64px'}),
         account_modal,
         change_pwd_modal,
         settings_modal
@@ -208,7 +208,6 @@ def _update_navbar_username(session_data):
     Output('modal-settings', 'is_open'),
     Input('nav-open-account', 'n_clicks'),
     Input('nav-open-change-password', 'n_clicks'),
-    Input('nav-open-settings', 'n_clicks'),
     Input('modal-account-close', 'n_clicks'),
     Input('modal-change-password-close', 'n_clicks'),
     Input('modal-settings-close', 'n_clicks'),
@@ -216,7 +215,7 @@ def _update_navbar_username(session_data):
     State('modal-change-password', 'is_open'),
     State('modal-settings', 'is_open')
 )
-def _toggle_modals(n_account, n_change, n_settings, n_close_account, n_close_change, n_close_settings, open_account, open_change, open_settings):
+def _toggle_modals(n_account, n_change, n_close_account, n_close_change, n_close_settings, open_account, open_change, open_settings):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -238,11 +237,6 @@ def _toggle_modals(n_account, n_change, n_settings, n_close_account, n_close_cha
         if open_change:
             return False, False, False
         return False, True, False
-
-    if prop == 'nav-open-settings':
-        if open_settings:
-            return False, False, False
-        return False, False, True
 
     return open_account, open_change, open_settings
 
