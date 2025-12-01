@@ -7,7 +7,7 @@ def create_footer():
         dbc.Container([
             dbc.Row([
                 dbc.Col([
-                    html.P("© 2025 Dự Đoán Lưu Lượng Nước. Bảo lưu mọi quyền.",
+                    html.P("© 2025 Phần mềm giám sát và dự báo lưu lượng nước. Bảo lưu mọi quyền.",
                            className="text-center mb-0 footer-text")
                 ], width=12)
             ])

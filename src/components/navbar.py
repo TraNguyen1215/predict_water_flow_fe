@@ -25,6 +25,7 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                 dbc.NavItem(dbc.NavLink("Trang chủ", href="/", className="nav-link-custom", active=is_active('/'))),
                 dbc.NavItem(dbc.NavLink("Cảm biến", href="/sensor", className="nav-link-custom", active=is_active('/sensor'))),
                 dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom", active=is_active('/pump'))),
+                dbc.NavItem(dbc.NavLink("Nhật ký gieo trồng", href="/planting-log", className="nav-link-custom", active=is_active('/planting-log'))),
                 dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
                 dbc.NavItem(dbc.NavLink("Nạp ESP", href="/esp-flash", className="nav-link-custom", active=is_active('/esp-flash'))),
             ]
@@ -65,7 +66,7 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
             html.A(
                 dbc.Row([
                     dbc.Col(html.Img(src='/assets/logo_waterflow.png', style={'height':'40px'}, alt='Logo')),
-                    dbc.Col(dbc.NavbarBrand("Dự Đoán Lưu Lượng Nước", className="ms-2 navbar-brand-custom")),
+                    dbc.Col(dbc.NavbarBrand("Giám sát và dự báo lưu lượng nước", className="ms-2 navbar-brand-custom")),
                 ], align="center", className="g-0"),
                 href=brand_href,
                 style={"textDecoration": "none"}

@@ -56,87 +56,22 @@ layout = html.Div([
                 dbc.Card([
                     dbc.CardHeader(html.H5('Công cụ nạp ESP trực tiếp trên trình duyệt')),
                     dbc.CardBody([
-                        html.Div(id='esp-flasher-root', children=[
-                            html.P(
-                                'Trình duyệt này sử dụng Web Serial để giao tiếp trực tiếp với bo mạch. Vui lòng dùng Chrome, Edge hoặc trình duyệt tương thích.',
-                                className='text-muted'
-                            ),
-                            dbc.Alert(
-                                'Trình duyệt sẽ yêu cầu quyền truy cập thiết bị USB/Serial. Chỉ cấp quyền cho thiết bị bạn tin tưởng.',
-                                color='warning',
-                                className='esp-browser-note'
+                        html.Div([
+                            html.Iframe(
+                                src='https://espressif.github.io/esptool-js/',
+                                style={'width': '100%', 'height': '800px', 'border': '0'},
+                                title='esptool-js flasher',
+                                allow='serial; usb; fullscreen'
                             ),
                             html.Div([
-                                dbc.Button('Kết nối thiết bị', id='esp-connect-btn', color='primary', className='me-2 mb-2'),
-                                dbc.Button('Ngắt kết nối', id='esp-disconnect-btn', color='secondary', outline=True, className='me-2 mb-2', disabled=True)
-                            ], className='esp-actions'),
-                            html.Div([
-                                html.Label('Chọn firmware (.bin)', htmlFor='esp-firmware-input', className='form-label fw-semibold'),
-                                dcc.Upload(
-                                    id='esp-firmware-input',
-                                    accept='.bin',
-                                    multiple=False,
-                                    className='esp-upload form-control text-center',
-                                    children=html.Div([
-                                        html.Span('Kéo thả hoặc bấm để chọn tệp firmware (.bin)', className='small text-muted')
-                                    ])
-                                ),
-                                html.Small('Hoặc:', className='text-muted d-block mt-2'),
-                                dbc.Button('Tải firmware từ assets', id='esp-load-from-assets-btn', color='info', outline=True, size='sm', className='mt-2 mb-2'),
-                                html.Small('Sau khi chọn tệp, hãy kết nối thiết bị rồi bấm "Bắt đầu nạp".', className='text-muted d-block mt-2'),
-                                html.Div(id='esp-firmware-selected', className='text-muted small mt-1')
-                            ], className='mt-3'),
-                            html.Div([
-                                html.Div([
-                                    html.Label('Địa chỉ bắt đầu (hex)', htmlFor='esp-start-address', className='form-label fw-semibold'),
-                                    dcc.Input(
-                                        id='esp-start-address',
-                                        type='text',
-                                        value='0x1000',
-                                        className='form-control form-control-sm',
-                                        placeholder='Ví dụ: 0x1000'
-                                    )
-                                ], className='col-12 col-md-6'),
-                                html.Div([
-                                    dbc.Button(
-                                        'Xóa toàn bộ flash trước khi nạp',
-                                        id='esp-erase-checkbox',
-                                        color='danger',
-                                        outline=True,
-                                        size='sm',
-                                        className='mt-4 mt-md-0',
-                                        n_clicks=0
-                                    )
-                                ], className='col-12 col-md-6')
-                            ], className='row g-3 align-items-center mt-2'),
-                            dbc.Button('Bắt đầu nạp', id='esp-flash-btn', color='success', className='mt-3', disabled=True),
-                            html.Div([
-                                html.Div(className='esp-progress-bar', children=[
-                                    html.Div(id='esp-progress-inner', className='esp-progress-bar-inner')
-                                ]),
-                                html.Div(id='esp-progress-label', className='esp-progress-label text-muted mt-2')
-                            ], className='mt-3'),
-                            html.Div(id='esp-status', className='esp-status mt-3'),
-                            html.Pre(id='esp-log', className='esp-log mt-3')
+                                html.Small('Nếu iframe không hiển thị hoặc không cho phép truy cập Serial, mở trực tiếp:', className='text-muted d-block mt-2'),
+                                html.A('Mở esptool-js trong tab mới', href='https://espressif.github.io/esptool-js/', target='_blank', rel='noopener')
+                            ], className='mt-2')
                         ])
                     ])
                 ])
             ], lg=7, className='mb-4 h-100')
         ]),
     ], fluid=True, className='esp-flash-container'),
-    html.Script(src='/assets/js/esp_flasher.js', type='module', defer=True),
-    html.Script("""
-    (function(){
-      function attempt(i){
-        if (window.initializeEspFlasher){
-          window.initializeEspFlasher();
-        } else if (i < 50){
-          setTimeout(function(){ attempt(i+1); }, 200);
-        } else {
-          console.error('Không thể khởi tạo ESP Flasher sau 50 lần thử');
-        }
-      }
-      attempt(0);
-    })();
-    """, type='text/javascript')
+    # Embedded esptool-js used via iframe; local flasher script removed in favor of upstream UI
 ], className='page-container')

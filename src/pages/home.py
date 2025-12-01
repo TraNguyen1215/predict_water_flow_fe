@@ -192,7 +192,7 @@ layout = html.Div([
                                     dbc.CardBody([
                                         html.Div([
                                             html.Div([
-                                                html.H6("Dự Đoán Lưu Lượng", className="stat-label"),
+                                                html.H6("Dự Báo Lưu Lượng", className="stat-label"),
                                                 html.H3(id='predicted-flow', children="N/A", className="stat-value"),
                                                 html.Small("Trung bình 24h", className="stat-desc")
                                             ]),
