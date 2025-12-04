@@ -27,7 +27,7 @@ def format_datetime(dt_str):
     try:
         dt = pd.to_datetime(dt_str, utc=True)
         dt_local = dt.tz_convert('Asia/Bangkok')
-        return dt_local.strftime('%H:%M %d/%m/%Y')
+        return dt_local.strftime('%H:%M:%S %d/%m/%Y')
     except:
         return "Không có dữ liệu"
 
@@ -655,7 +655,7 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
         try:
             ts_parsed = pd.to_datetime(ts, utc=True)
             ts_local = ts_parsed.tz_convert('Asia/Bangkok')
-            return ts_local, ts_local.strftime('%H:%M %d/%m/%Y')
+            return ts_local, ts_local.strftime('%H:%M:%S %d/%m/%Y')
         except Exception:
             return None, str(ts)
 
@@ -694,7 +694,13 @@ def toggle_pump_memory(open_clicks, prev_click, next_click, selected_date, store
         except Exception:
             duration_str = '—'
 
-        rows.append(html.Tr([html.Td(str(stt)), html.Td(bat_str), html.Td(tat_str), html.Td(duration_str), html.Td(ghi_chu)]))
+        rows.append(html.Tr([
+            html.Td(str(stt)),
+            html.Td(html.Small(bat_str, className='text-muted')),
+            html.Td(html.Small(tat_str, className='text-muted')),
+            html.Td(duration_str),
+            html.Td(ghi_chu)
+        ]))
     
     pump_name = None
     try:

@@ -1957,6 +1957,59 @@ textarea {
     background: #f9fafb;
 }
 
+/* New home layout tweaks for stat cards and pump control */
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0.15rem 0;
+}
+
+.stat-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.stat-icon {
+    font-size: 1.6rem;
+    opacity: 0.9;
+}
+
+.power-icon-wrap {
+    width: 96px;
+    height: 96px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(16,185,129,0.12);
+    margin: 0 auto;
+}
+
+.power-icon {
+    font-size: 36px;
+    color: #10b981;
+}
+
+.pump-control-compact .form-check {
+    display: flex;
+    justify-content: center;
+}
+
+.pump-control-compact .btn {
+    font-weight: 600;
+}
+
+.pump-history-item {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eef2f8;
+}
+
+@media (max-width: 767.98px) {
+    .power-icon-wrap { width: 72px; height: 72px; }
+    .power-icon { font-size: 28px; }
+}
+
 /* Section Titles */
 .section-title {
     font-size: 1.5rem;

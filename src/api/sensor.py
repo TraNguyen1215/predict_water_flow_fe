@@ -25,6 +25,7 @@ def list_sensors(limit: int = 50, offset: int = 0, token: Optional[str] = None) 
         except Exception:
             data = {}
         if resp.status_code == 200:
+            # print(data)
             return data
         return {'data': [], 'limit': limit, 'offset': offset, 'total': 0, 'error': data}
     except requests.RequestException as e:
@@ -102,7 +103,6 @@ def delete_sensor(ma_cam_bien: int, token: Optional[str] = None) -> Tuple[bool, 
 def get_sensor_types(token: Optional[str] = None) -> Dict[str, Any]:
     """Lấy danh sách loại cảm biến từ API: GET /loai_cam_bien
 
-    Trả về cấu trúc giống {'data': [...]} hoặc {'data': [], 'error': ...}
     """
     try:
         headers = {}

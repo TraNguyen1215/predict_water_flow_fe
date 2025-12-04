@@ -24,6 +24,20 @@ layout = html.Div([
                             html.Li('Theo dõi trạng thái nạp, đợi hoàn tất 100% rồi khởi động lại thiết bị.'),
                             html.Li('Nếu được yêu cầu, giữ nút BOOT trên bo mạch trong khi kết nối.')
                         ], className='esp-flash-steps'),
+                        html.Div([
+                            html.Img(src='/assets/img/setup_sensor.png', style={'maxWidth': '100%', 'height': 'auto', 'display': 'block', 'marginTop': '16px'}),
+                            html.Small('Hình minh họa: kết nối và chuẩn bị cảm biến', className='text-muted d-block mt-2'),
+                            html.Div([
+                                html.A(
+                                    'Tải firmware (.bin)',
+                                    href='/assets/sketch_oct15a.ino.bin',
+                                    download='sketch_oct15a.ino.bin',
+                                    className='btn btn-primary btn-sm mt-2',
+                                    target='_blank'
+                                ),
+                                html.Small('Nhấp để tải về và sử dụng', className='text-muted d-block mt-1')
+                            ])
+                        ]),
                         dbc.Alert(
                             'Hãy chuẩn bị sẵn tệp firmware (.bin) tương thích với bo mạch trước khi bắt đầu.',
                             color='secondary',

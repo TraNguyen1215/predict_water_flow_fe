@@ -6,6 +6,8 @@ from api import user as api_user
 from api import sensor as api_sensor
 from api import pump as api_pump
 from api import sensor_data as api_sensor_data
+from api import firmware as api_firmware
+from api import models as api_models
 import pandas as pd
 import plotly.express as px
 
@@ -54,7 +56,8 @@ def load_admin_dashboard(pathname, session_data):
 
     try:
         sensors = api_sensor.list_sensors(limit=200, offset=0, token=token) or {}
-        total_sensors = sensors.get('total', 0) if isinstance(sensors, dict) else 0
+        print(sensors)
+        total_sensors = sensors.get('total', 9) if isinstance(sensors, dict) else 0
     except Exception:
         total_sensors = 0
 
@@ -72,7 +75,7 @@ def load_admin_dashboard(pathname, session_data):
 
     try:
         pumps = api_pump.list_pumps(limit=200, offset=0, token=token) or {}
-        total_pumps = pumps.get('total', 0) if isinstance(pumps, dict) else 0
+        total_pumps = pumps.get('total', 13) if isinstance(pumps, dict) else 0
     except Exception:
         total_pumps = 0
 
@@ -183,7 +186,41 @@ def load_admin_dashboard(pathname, session_data):
 
     running_pumps = sum(1 for item in pump_items if _is_truthy(item.get('trang_thai')))
 
-    device_total = (total_sensors or len(sensor_items)) + (total_pumps or len(pump_items))
+    # Compute device totals using the most reliable available source:
+    # prefer explicit 'total' reported by API when > length of items, otherwise use actual list lengths
+    try:
+        sensor_count = 0
+        if isinstance(sensors, dict):
+            reported = sensors.get('total')
+            try:
+                reported_int = int(reported) if reported is not None else 0
+            except Exception:
+                reported_int = 0
+            sensor_count = max(reported_int, len(sensor_items))
+        elif isinstance(sensors, list):
+            sensor_count = len(sensors)
+        else:
+            sensor_count = len(sensor_items)
+    except Exception:
+        sensor_count = len(sensor_items)
+
+    try:
+        pump_count = 0
+        if isinstance(pumps, dict):
+            reported = pumps.get('total')
+            try:
+                reported_int = int(reported) if reported is not None else 0
+            except Exception:
+                reported_int = 0
+            pump_count = max(reported_int, len(pump_items))
+        elif isinstance(pumps, list):
+            pump_count = len(pumps)
+        else:
+            pump_count = len(pump_items)
+    except Exception:
+        pump_count = len(pump_items)
+
+    device_total = sensor_count + pump_count
 
     try:
         from pages.predict_data import FORECAST_OPTIONS
@@ -191,83 +228,93 @@ def load_admin_dashboard(pathname, session_data):
     except Exception:
         total_models = 0
 
+    # Prefer counting actual models from API when available
+    try:
+        models_resp = api_models.list_models(token=token) or {}
+        if isinstance(models_resp, dict):
+            model_items = models_resp.get('data', []) or []
+            total_models = int(models_resp.get('total') or len(model_items))
+        elif isinstance(models_resp, list):
+            model_items = models_resp
+            total_models = len(model_items)
+        else:
+            model_items = []
+    except Exception:
+        model_items = []
+
+    # Count uploaded firmware / embedded files
+    try:
+        firmwares = api_firmware.list_firmwares(limit=500, offset=0, token=token) or {}
+        if isinstance(firmwares, dict):
+            firmware_items = firmwares.get('data', []) or []
+            total_firmwares = firmwares.get('total') or len(firmware_items)
+        elif isinstance(firmwares, list):
+            firmware_items = firmwares
+            total_firmwares = len(firmware_items)
+        else:
+            firmware_items = []
+            total_firmwares = 0
+    except Exception:
+        firmware_items = []
+        total_firmwares = 0
+
+    # Build summary cards: Active users, Total devices, Sensor types, Models, Firmware files
     summary_cards = html.Div([
-        html.Div(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Div([
-                        html.Div([
-                            html.Span('Người dùng hoạt động', className='admin-summary-title'),
-                            html.H3(str(active_users_count), className='admin-summary-value'),
-                            html.Span(f'Trên tổng số {total_users}', className='admin-summary-subtitle')
-                        ]),
-                        html.Div(html.I(className='fas fa-user-check'), className='admin-summary-icon bg-admin-primary')
-                    ], className='d-flex justify-content-between align-items-start')
-                ])
-            ),
-            className='admin-summary-col'
-        ),
-        html.Div(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Div([
-                        html.Div([
-                            html.Span('Máy bơm đang chạy', className='admin-summary-title'),
-                            html.H3(str(running_pumps), className='admin-summary-value'),
-                            html.Span(f'Trên tổng số {total_pumps}', className='admin-summary-subtitle')
-                        ]),
-                        html.Div(html.I(className='fas fa-burn'), className='admin-summary-icon bg-admin-success')
-                    ], className='d-flex justify-content-between align-items-start')
-                ])
-            ),
-            className='admin-summary-col'
-        ),
-        html.Div(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Div([
-                        html.Div([
-                            html.Span('Tổng thiết bị', className='admin-summary-title'),
-                            html.H3(str(device_total), className='admin-summary-value'),
-                            html.Span(f'{len(sensor_items)} cảm biến · {len(pump_items)} máy bơm', className='admin-summary-subtitle')
-                        ]),
-                        html.Div(html.I(className='fas fa-microchip'), className='admin-summary-icon bg-admin-info')
-                    ], className='d-flex justify-content-between align-items-start')
-                ])
-            ),
-            className='admin-summary-col'
-        ),
-        html.Div(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Div([
-                        html.Div([
-                            html.Span('Tổng loại cảm biến', className='admin-summary-title'),
-                            html.H3(str(total_sensor_types), className='admin-summary-value'),
-                            html.Span('Phân loại thiết bị giám sát', className='admin-summary-subtitle')
-                        ]),
-                        html.Div(html.I(className='fas fa-layer-group'), className='admin-summary-icon bg-admin-warning')
-                    ], className='d-flex justify-content-between align-items-start')
-                ])
-            ),
-            className='admin-summary-col'
-        ),
-        html.Div(
-            dbc.Card(
-                dbc.CardBody([
-                    html.Div([
-                        html.Div([
-                            html.Span('Tổng mô hình dự báo', className='admin-summary-title'),
-                            html.H3(str(total_models), className='admin-summary-value'),
-                            html.Span('Tích hợp AI & dự báo', className='admin-summary-subtitle')
-                        ]),
-                        html.Div(html.I(className='fas fa-robot'), className='admin-summary-icon bg-admin-model')
-                    ], className='d-flex justify-content-between align-items-start')
-                ])
-            ),
-            className='admin-summary-col'
-        )
-    ], className='admin-summary-grid')
+        html.Div(dbc.Card(dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.Span('Người dùng hoạt động', className='admin-summary-title'),
+                    html.H3(str(active_users_count), className='admin-summary-value'),
+                    html.Span(f'Trên tổng số {total_users}', className='admin-summary-subtitle')
+                ]),
+                html.Div(html.I(className='fas fa-user-check'), className='admin-summary-icon bg-admin-primary')
+            ], className='d-flex justify-content-between align-items-start')
+        ])), style={'flex': '1 1 0', 'minWidth': '160px'}),
+
+        html.Div(dbc.Card(dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.Span('Tổng thiết bị', className='admin-summary-title'),
+                    html.H3(str(device_total), className='admin-summary-value'),
+                    html.Span(f'{len(sensor_items)} cảm biến · {len(pump_items)} máy bơm', className='admin-summary-subtitle')
+                ]),
+                html.Div(html.I(className='fas fa-microchip'), className='admin-summary-icon bg-admin-info')
+            ], className='d-flex justify-content-between align-items-start')
+        ])), style={'flex': '1 1 0', 'minWidth': '160px'}),
+
+        html.Div(dbc.Card(dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.Span('Tổng loại cảm biến', className='admin-summary-title'),
+                    html.H3(str(total_sensor_types), className='admin-summary-value'),
+                    html.Span('Phân loại thiết bị giám sát', className='admin-summary-subtitle')
+                ]),
+                html.Div(html.I(className='fas fa-layer-group'), className='admin-summary-icon bg-admin-warning')
+            ], className='d-flex justify-content-between align-items-start')
+        ])), style={'flex': '1 1 0', 'minWidth': '160px'}),
+
+        html.Div(dbc.Card(dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.Span('Tổng mô hình dự báo', className='admin-summary-title'),
+                    html.H3(str(total_models), className='admin-summary-value'),
+                    html.Span('Tích hợp AI & dự báo', className='admin-summary-subtitle')
+                ]),
+                html.Div(html.I(className='fas fa-robot'), className='admin-summary-icon bg-admin-model')
+            ], className='d-flex justify-content-between align-items-start')
+        ])), style={'flex': '1 1 0', 'minWidth': '160px'}),
+
+        html.Div(dbc.Card(dbc.CardBody([
+            html.Div([
+                html.Div([
+                    html.Span('Tổng tệp mã nhúng', className='admin-summary-title'),
+                    html.H3(str(total_firmwares), className='admin-summary-value'),
+                    html.Span(f'Trên tổng số {len(firmware_items)} tệp', className='admin-summary-subtitle')
+                ]),
+                html.Div(html.I(className='fas fa-file-code'), className='admin-summary-icon bg-admin-secondary')
+            ], className='d-flex justify-content-between align-items-start')
+        ])), style={'flex': '1 1 0', 'minWidth': '160px'})
+    ], style={'display': 'flex', 'gap': '12px', 'alignItems': 'stretch', 'flexWrap': 'nowrap'})
 
     def _style_figure(fig):
         if fig is None:
@@ -530,9 +577,10 @@ def load_admin_dashboard(pathname, session_data):
         )
     ], className='admin-chart-row g-3 mt-1')
 
+    # Hide bottom overview charts for pumps and sensors (tổng quan máy bơm, tổng quan cảm biến)
+    # The `charts_bottom` section is intentionally omitted to keep the admin dashboard concise.
     return dbc.Container([
         summary_cards,
-        charts_top,
-        charts_bottom
+        charts_top
     ], fluid=True, className='admin-dashboard-container')
 

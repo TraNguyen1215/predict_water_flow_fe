@@ -26,7 +26,6 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                 dbc.NavItem(dbc.NavLink("Cảm biến", href="/sensor", className="nav-link-custom", active=is_active('/sensor'))),
                 dbc.NavItem(dbc.NavLink("Máy bơm", href="/pump", className="nav-link-custom", active=is_active('/pump'))),
                 dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
-                dbc.NavItem(dbc.NavLink("Nạp ESP", href="/esp-flash", className="nav-link-custom", active=is_active('/esp-flash'))),
             ]
 
         user_dropdown = dbc.DropdownMenu(
@@ -181,8 +180,6 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
     root = html.Div([
         dcc.Location(id='account-url', refresh=False),
         navbar,
-        # spacer so sticky navbar does not overlap page content
-        html.Div(style={'height': '64px'}),
         account_modal,
         change_pwd_modal,
         settings_modal
