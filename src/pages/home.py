@@ -205,18 +205,23 @@ layout = html.Div([
             ], md=6, lg=3),
 
             dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        html.Div([
+                html.Div(
+                    dbc.Card([
+                        dbc.CardBody([
                             html.Div([
-                                html.H6("Độ Ẩm Đất", className="stat-label"),
-                                html.H3(id='soil-moisture', children="N/A", className="stat-value"),
-                                html.Small("%", className="stat-desc text-muted")
-                            ]),
-                            html.I(className="fas fa-seedling stat-icon text-success")
-                        ], className="stat-card-content")
-                    ])
-                ], className="stat-card-wrapper")
+                                html.Div([
+                                    html.H6("Độ Ẩm Đất", className="stat-label"),
+                                    html.H3(id='soil-moisture', children="N/A", className="stat-value"),
+                                    html.Small("%", className="stat-desc text-muted")
+                                ]),
+                                html.I(className="fas fa-seedling stat-icon text-success")
+                            ], className="stat-card-content")
+                        ])
+                    ], className="stat-card-wrapper"),
+                    id='soil-moisture-card',
+                    style={'cursor': 'pointer', 'transition': 'transform 0.2s, box-shadow 0.2s'},
+                    n_clicks=0
+                )
             ], md=6, lg=3),
 
             dbc.Col([
@@ -358,6 +363,29 @@ layout = html.Div([
                         dbc.Button("Đóng", id='pump-history-modal-close', className="ms-auto")
                     ])
                 ], id='pump-history-modal', size='lg', centered=True),
+                
+                # Modal for soil moisture chart
+                dbc.Modal([
+                    dbc.ModalHeader(
+                        html.H5("Biểu Đồ Độ Ẩm Đất", className="mb-0"),
+                        close_button=True
+                    ),
+                    dbc.ModalBody([
+                        dcc.Graph(id='soil-moisture-chart', config={'displayModeBar': False}),
+                        html.Div([
+                            html.Div([html.Small("Trung bình", className="small text-muted"), html.Strong(id='soil-moisture-avg', children='N/A', className='ms-2')], className='me-4'),
+                            html.Div([html.Small("Tối đa", className="small text-muted"), html.Strong(id='soil-moisture-max', children='N/A', className='ms-2')], className='me-4'),
+                            html.Div([html.Small("Tối thiểu", className="small text-muted"), html.Strong(id='soil-moisture-min', children='N/A', className='ms-2')], className='me-4'),
+                        ], className='d-flex justify-content-start align-items-center mt-3')
+                    ], style={
+                        'max-height': '600px',
+                        'overflow-y': 'auto',
+                        'padding-right': '10px'
+                    }),
+                    dbc.ModalFooter([
+                        dbc.Button("Đóng", id='soil-moisture-modal-close', className="ms-auto")
+                    ])
+                ], id='soil-moisture-modal', size='lg', centered=True),
     
     dcc.Store(id='selected-history-date-store', data=None)
             ], lg=3)
@@ -892,3 +920,108 @@ def init_date_picker(is_open):
     if is_open:
         return datetime.now().strftime('%Y-%m-%d')
     raise PreventUpdate
+
+@callback(
+    Output('soil-moisture-modal', 'is_open'),
+    [
+        Input('soil-moisture-card', 'n_clicks'),
+        Input('soil-moisture-modal-close', 'n_clicks'),
+    ],
+    [
+        State('soil-moisture-modal', 'is_open')
+    ]
+)
+def toggle_soil_moisture_modal(n_clicks_card, n_clicks_close, is_open):
+    """Toggle soil moisture modal when card is clicked."""
+    if n_clicks_card or n_clicks_close:
+        return not is_open
+    return is_open
+
+@callback(
+    [
+        Output('soil-moisture-chart', 'figure'),
+        Output('soil-moisture-avg', 'children'),
+        Output('soil-moisture-max', 'children'),
+        Output('soil-moisture-min', 'children'),
+    ],
+    [
+        Input('soil-moisture-modal', 'is_open'),
+    ],
+    [
+        State('session-store', 'data')
+    ]
+)
+def update_soil_moisture_chart(is_open, session):
+    """Update soil moisture chart when modal opens."""
+    if not is_open:
+        raise PreventUpdate
+    
+    token = session.get('token') if session else None
+    
+    try:
+        df = fetch_sensor_data(token)
+        
+        if df.empty:
+            empty_figure = {
+                'data': [],
+                'layout': go.Layout(
+                    title='Không có dữ liệu',
+                    xaxis={'title': 'Thời Gian'},
+                    yaxis={'title': 'Độ Ẩm Đất (%)'},
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                )
+            }
+            return empty_figure, "N/A", "N/A", "N/A"
+        
+        # Create soil moisture chart
+        figure = {
+            'data': [
+                go.Scatter(
+                    x=df['date'],
+                    y=df['soil_moisture'],
+                    mode='lines+markers',
+                    name='Độ Ẩm Đất',
+                    line=dict(color='#27ae60', width=3),
+                    marker=dict(size=6),
+                    fill='tozeroy',
+                    fillcolor='rgba(39, 174, 96, 0.2)'
+                )
+            ],
+            'layout': go.Layout(
+                xaxis={'title': 'Thời Gian', 'gridcolor': '#f0f0f0'},
+                yaxis={'title': 'Độ Ẩm Đất (%)', 'gridcolor': '#f0f0f0'},
+                hovermode='x unified',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=50, r=20, t=20, b=50),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+        }
+        
+        # Calculate stats
+        avg_moisture = f"{df['soil_moisture'].mean():.1f}%" if not df.empty else "N/A"
+        max_moisture = f"{df['soil_moisture'].max():.1f}%" if not df.empty else "N/A"
+        min_moisture = f"{df['soil_moisture'].min():.1f}%" if not df.empty else "N/A"
+        
+        return figure, avg_moisture, max_moisture, min_moisture
+    
+    except Exception as e:
+        print(f"Error updating soil moisture chart: {e}")
+        empty_figure = {
+            'data': [],
+            'layout': go.Layout(
+                title='Lỗi tải dữ liệu',
+                xaxis={'title': 'Thời Gian'},
+                yaxis={'title': 'Độ Ẩm Đất (%)'},
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+            )
+        }
+        return empty_figure, "N/A", "N/A", "N/A"
