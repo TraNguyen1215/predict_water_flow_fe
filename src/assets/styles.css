@@ -2529,3 +2529,118 @@ textarea {
         font-size: 1rem;
     }
 }
+
+/* ============ NOTIFICATION STYLES ============ */
+
+/* Notification button in navbar */
+#navbar-notifications-btn {
+    position: relative;
+}
+
+#navbar-notifications-btn .badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Notification list styles */
+.notification-item {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateX(-4px);
+}
+
+.notification-item.unread {
+    background: #f0f6ff !important;
+    border-left: 4px solid #0d6efd !important;
+    font-weight: 500;
+}
+
+.notification-item.unread h6 {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+/* Offcanvas customization */
+.offcanvas {
+    background-color: #f8f9fa;
+}
+
+.offcanvas-header {
+    border-bottom: 1px solid #dee2e6;
+    padding: 1rem 1.5rem;
+}
+
+.offcanvas-body {
+    padding: 0.5rem 1rem;
+}
+
+/* Empty notification state */
+#notifications-list .alert {
+    margin: 2rem 0;
+}
+
+/* Badge animations */
+.badge-danger {
+    background-color: #dc2626 !important;
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+    }
+}
+
+/* Notification item responsive */
+@media (max-width: 576px) {
+    .offcanvas {
+        width: 100% !important;
+    }
+    
+    .notification-item .btn-group {
+        width: 100%;
+    }
+}
+
+/* ============ TOGGLE/SWITCH STYLES ============ */
+
+/* Bo tròn Dash Bootstrap Checklist switch toggle */
+.form-check-input[type="checkbox"] {
+    border-radius: 50px !important;
+    width: 3.5rem !important;
+    height: 1.75rem !important;
+}
+
+.form-check-input[type="checkbox"]:checked {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.form-check-input[type="checkbox"]:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Đảm bảo switch indicator bo tròn */
+.form-check-input[type="checkbox"]::before {
+    border-radius: 50% !important;
+}
+
+.form-check-input[type="checkbox"]::after {
+    border-radius: 50% !important;
+}

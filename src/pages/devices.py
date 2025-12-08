@@ -211,7 +211,7 @@ def device_load_all_data(n_intervals, session_data):
     
     try:
         pump_data = list_pumps(limit=1, offset=0, token=token)
-        print(f"DEBUG: pump_data = {pump_data}")
+        # print(f"DEBUG: pump_data = {pump_data}")
     except Exception as e:
         print(f"ERROR loading pumps: {str(e)}")
         import traceback
@@ -219,7 +219,7 @@ def device_load_all_data(n_intervals, session_data):
     
     try:
         sensor_data = list_sensors(limit=100, offset=0, token=token)
-        print(f"DEBUG: sensor_data = {sensor_data}")
+        # print(f"DEBUG: sensor_data = {sensor_data}")
     except Exception as e:
         print(f"ERROR loading sensors: {str(e)}")
         import traceback
@@ -235,19 +235,19 @@ def device_load_all_data(n_intervals, session_data):
     Input('device-pump-data-store', 'data')
 )
 def device_render_main_pump(pump_data):
-    print(f"[DEBUG] device_render_main_pump: pump_data = {pump_data}")
+    # print(f"[DEBUG] device_render_main_pump: pump_data = {pump_data}")
     
     if not pump_data or not isinstance(pump_data, dict):
         return dbc.Alert("❌ Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
     
     pumps = pump_data.get('data', [])
-    print(f"[DEBUG] pumps = {pumps}")
+    # print(f"[DEBUG] pumps = {pumps}")
     
     if not pumps:
         return dbc.Alert("❌ Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
     
     pump = pumps[0]  # Lấy máy bơm đầu tiên (chỉ có 1 máy bơm)
-    print(f"[DEBUG] rendering pump: {pump}")
+    # print(f"[DEBUG] rendering pump: {pump}")
     
     return dbc.Col([
         dbc.Card([
@@ -309,22 +309,26 @@ def device_render_main_pump(pump_data):
                         color="warning",
                         outline=True,
                         size="sm",
-                        className="me-2"
+                        className="me-2",
+                        n_clicks=0
                     ),
                     dbc.Button(
                         html.I(className="fas fa-trash me-2"),
                         id={'type': 'device-delete-pump', 'index': pump.get('ma_may_bom')},
                         color="danger",
                         outline=True,
-                        size="sm"
+                        size="sm",
+                        n_clicks=0
                     ),
-                    dbc.Button(
+                    dbc.Button([
                         html.I(className="fas fa-plus me-2"),
-                        "Thêm máy bơm",
+                        "Thêm máy bơm"
+                    ],
                         id="device-open-add-pump",
                         color="success",
                         size="sm",
-                        className="ms-auto"
+                        className="ms-auto",
+                        n_clicks=0
                     )
                 ], className="d-flex")
             ])
@@ -382,7 +386,13 @@ def device_toggle_pump_modal(add_click, save_click, cancel_click, edit_clicks, d
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
+    
     trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    trig_value = ctx.triggered[0]['value']
+    
+    # Nếu chưa được nhấp (n_clicks=0 hoặc None), không xử lý
+    if trig_value is None or trig_value == 0:
+        raise PreventUpdate
     
     # Không mở modal khi xóa
     if 'device-delete-pump' in trig_id:
@@ -483,7 +493,23 @@ def device_toggle_delete_pump_modal(delete_clicks, confirm_click, cancel_click, 
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
-    return not is_open
+    
+    trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    trig_value = ctx.triggered[0]['value']
+    
+    # Nếu chưa được nhấp (n_clicks=0 hoặc None), không xử lý
+    if trig_value is None or trig_value == 0:
+        raise PreventUpdate
+    
+    # Nếu nhấn xác nhận xóa hoặc hủy, đóng modal
+    if 'device-confirm-delete-pump' in trig_id or 'device-confirm-cancel-pump' in trig_id:
+        return False
+    
+    # Nếu nhấn nút xóa, mở modal
+    if 'device-delete-pump' in trig_id:
+        return True
+    
+    raise PreventUpdate
 
 
 @callback(
@@ -626,6 +652,15 @@ def device_toggle_sensor_modal(add_click, save_click, cancel_click, edit_clicks,
         raise PreventUpdate
     
     trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    trig_value = ctx.triggered[0]['value']
+    
+    # Nếu chưa được nhấp (n_clicks=0 hoặc None), không xử lý
+    if trig_value is None or trig_value == 0:
+        raise PreventUpdate
+    
+    # Không mở modal khi xóa
+    if 'device-delete-sensor' in trig_id:
+        raise PreventUpdate
     
     # Nếu lưu thành công, đóng modal
     if 'device-sensor-save' in trig_id:
@@ -732,7 +767,23 @@ def device_toggle_delete_sensor_modal(delete_clicks, confirm_click, cancel_click
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
-    return not is_open
+    
+    trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    trig_value = ctx.triggered[0]['value']
+    
+    # Nếu chưa được nhấp (n_clicks=0 hoặc None), không xử lý
+    if trig_value is None or trig_value == 0:
+        raise PreventUpdate
+    
+    # Nếu nhấn xác nhận xóa hoặc hủy, đóng modal
+    if 'device-confirm-delete-sensor' in trig_id or 'device-confirm-cancel-sensor' in trig_id:
+        return False
+    
+    # Nếu nhấn nút xóa, mở modal
+    if 'device-delete-sensor' in trig_id:
+        return True
+    
+    raise PreventUpdate
 
 
 @callback(

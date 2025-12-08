@@ -27,6 +27,17 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                 dbc.NavItem(dbc.NavLink("Dự đoán", href="/predict_data", className="nav-link-custom", active=is_active('/predict_data'))),
             ]
 
+        # Notification button
+        notification_btn = dbc.Button([
+            html.I(className="fas fa-bell"),
+            html.Span(
+                id='notification-badge',
+                className='badge badge-danger position-absolute top-0 start-100 translate-middle',
+                children='0',
+                style={'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+            )
+        ], id='navbar-notifications-btn', color='light', size='sm', className='position-relative me-2', n_clicks=0, style={'border': 'none'})
+
         user_dropdown = dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Thông tin tài khoản", id='nav-open-account', n_clicks=0),
@@ -48,7 +59,7 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
             ], className='d-flex align-items-center')
         )
 
-        nav_items.append(dbc.NavItem(user_dropdown))
+        nav_items.append(dbc.NavItem(html.Div([notification_btn, user_dropdown], className='d-flex align-items-center')))
     else:
         nav_items = [
             dbc.NavItem(dbc.NavLink("Đăng nhập", href="/login", className="nav-link-custom", active=is_active('/login'))),
@@ -176,12 +187,35 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
         dbc.ModalFooter(dbc.Button("Đóng", id='modal-settings-close', className='ms-auto'))
     ], id='modal-settings', is_open=False, centered=True, size='md')
 
+    # Notifications Modal
+    notifications_modal = dbc.Offcanvas([
+        html.Div([
+            dbc.Row([
+                dbc.Col([
+                    html.H4("Thông báo", className="mb-0"),
+                ], width=True),
+                dbc.Col([
+                    dbc.Button("Đánh dấu tất cả đã đọc", id='mark-all-read-btn', color='light', size='sm', className='text-muted me-2'),
+                    dbc.Button("Xóa tất cả", id='delete-all-notifications-btn', color='light', size='sm', className='text-danger'),
+                ], width='auto', className='ms-auto')
+            ], className='align-items-center mb-3')
+        ], className='border-bottom pb-3'),
+        html.Div(id='notifications-list-container', children=[
+            dcc.Loading(id='notifications-loading', type='default', children=[
+                html.Div(id='notifications-list')
+            ])
+        ], style={'maxHeight': '600px', 'overflowY': 'auto', 'padding': '1rem'}),
+        dcc.Interval(id='notifications-refresh-interval', interval=10*1000, n_intervals=0),
+        dcc.Store(id='notifications-store', data={'data': [], 'total': 0})
+    ], id='notifications-offcanvas', is_open=False, placement='end', backdrop=True, scrollable=True, style={'width': '400px'})
+
     root = html.Div([
         dcc.Location(id='account-url', refresh=False),
         navbar,
         account_modal,
         change_pwd_modal,
-        settings_modal
+        settings_modal,
+        notifications_modal
     ])
 
     return root
@@ -236,3 +270,243 @@ def _toggle_modals(n_account, n_change, n_close_account, n_close_change, n_close
 
     return open_account, open_change, open_settings
 
+
+# ============ NOTIFICATION CALLBACKS ============
+
+@callback(
+    Output('notifications-offcanvas', 'is_open'),
+    Input('navbar-notifications-btn', 'n_clicks'),
+    State('notifications-offcanvas', 'is_open'),
+    prevent_initial_call=True
+)
+def toggle_notifications_panel(n_clicks, is_open):
+    if n_clicks and n_clicks > 0:
+        return not is_open
+    raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    [Output('notifications-store', 'data'),
+     Output('notification-badge', 'children'),
+     Output('notification-badge', 'style')],
+    [Input('notifications-refresh-interval', 'n_intervals'),
+     Input('notifications-offcanvas', 'is_open')],
+    State('session-store', 'data'),
+    prevent_initial_call=False
+)
+def update_notifications(n_intervals, is_open, session_data):
+    from api.notification import get_notifications, get_unread_count
+    
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+    
+    if not token:
+        return {'data': [], 'total': 0}, '0', {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+    
+    try:
+        notifications = get_notifications(limit=50, offset=0, token=token)
+        unread_count = get_unread_count(token=token)
+        
+        badge_style = {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+        badge_text = '0'
+        
+        if unread_count > 0:
+            badge_text = str(unread_count) if unread_count <= 99 else '99+'
+            badge_style = {'display': 'block', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+        
+        return notifications, badge_text, badge_style
+    except Exception as e:
+        print(f"Error updating notifications: {str(e)}")
+        return {'data': [], 'total': 0}, '0', {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+
+
+@callback(
+    Output('notifications-list', 'children'),
+    Input('notifications-store', 'data'),
+    prevent_initial_call=False
+)
+def render_notifications(notifications_data):
+    if not notifications_data or not isinstance(notifications_data, dict):
+        return dbc.Alert("Không có thông báo", color="info", className="text-center mt-4")
+    
+    notifications = notifications_data.get('data', [])
+    
+    if not notifications:
+        return dbc.Alert("Không có thông báo", color="info", className="text-center mt-4")
+    
+    notification_items = []
+    for notif in notifications:
+        is_read = notif.get('is_read', True)
+        notif_id = notif.get('id') or notif.get('ma_thong_bao')
+        
+        badge_color = 'light' if is_read else 'primary'
+        badge_class = 'unread' if not is_read else ''
+        
+        notification_items.append(
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                html.H6(
+                                    notif.get('title', 'Thông báo'),
+                                    className='mb-1 fw-bold' if not is_read else 'mb-1'
+                                ),
+                                html.P(
+                                    notif.get('message', ''),
+                                    className='mb-2 small text-muted',
+                                    style={'fontSize': '0.85rem'}
+                                ),
+                                html.Small(
+                                    notif.get('created_at', 'N/A'),
+                                    className='text-muted'
+                                )
+                            ])
+                        ], width=True),
+                        dbc.Col([
+                            dbc.ButtonGroup([
+                                dbc.Button(
+                                    html.I(className='fas fa-times'),
+                                    id={'type': 'delete-notification', 'index': notif_id},
+                                    color='light',
+                                    size='sm',
+                                    className='text-danger',
+                                    n_clicks=0
+                                )
+                            ], size='sm')
+                        ], width='auto', className='text-end')
+                    ], className='align-items-start')
+                ], className='p-3')
+            ], className=f'mb-2 notification-item {badge_class}', style={
+                'borderLeft': '4px solid #0d6efd' if not is_read else '4px solid #e9ecef',
+                'background': '#f0f6ff' if not is_read else '#fff'
+            })
+        )
+    
+    return notification_items
+
+
+@callback(
+    [Output('notifications-store', 'data', allow_duplicate=True),
+     Output('notification-badge', 'children', allow_duplicate=True),
+     Output('notification-badge', 'style', allow_duplicate=True)],
+    Input({'type': 'delete-notification', 'index': dash.ALL}, 'n_clicks'),
+    State('notifications-store', 'data'),
+    State('session-store', 'data'),
+    prevent_initial_call=True
+)
+def delete_notification_item(delete_clicks, notifications_data, session_data):
+    from api.notification import delete_notification, get_unread_count
+    
+    ctx = dash.callback_context
+    if not ctx.triggered or not delete_clicks or sum(delete_clicks) == 0:
+        raise dash.exceptions.PreventUpdate
+    
+    trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    try:
+        import json
+        obj = json.loads(trig_id)
+        notif_id = obj.get('index')
+        
+        token = None
+        if session_data and isinstance(session_data, dict):
+            token = session_data.get('token')
+        
+        if token and notif_id:
+            delete_notification(notif_id, token=token)
+            
+            # Refresh notifications
+            from api.notification import get_notifications
+            notifications = get_notifications(limit=50, offset=0, token=token)
+            unread_count = get_unread_count(token=token)
+            
+            badge_style = {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+            badge_text = '0'
+            
+            if unread_count > 0:
+                badge_text = str(unread_count) if unread_count <= 99 else '99+'
+                badge_style = {'display': 'block', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+            
+            return notifications, badge_text, badge_style
+    except Exception as e:
+        print(f"Error deleting notification: {str(e)}")
+    
+    raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    [Output('notifications-store', 'data', allow_duplicate=True),
+     Output('notification-badge', 'children', allow_duplicate=True),
+     Output('notification-badge', 'style', allow_duplicate=True)],
+    Input('mark-all-read-btn', 'n_clicks'),
+    State('session-store', 'data'),
+    prevent_initial_call=True
+)
+def mark_all_notifications_read(n_clicks, session_data):
+    from api.notification import mark_all_as_read, get_notifications, get_unread_count
+    
+    if not n_clicks or n_clicks == 0:
+        raise dash.exceptions.PreventUpdate
+    
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+    
+    if not token:
+        raise dash.exceptions.PreventUpdate
+    
+    try:
+        mark_all_as_read(token=token)
+        
+        # Refresh notifications
+        notifications = get_notifications(limit=50, offset=0, token=token)
+        unread_count = get_unread_count(token=token)
+        
+        badge_style = {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+        badge_text = '0'
+        
+        if unread_count > 0:
+            badge_text = str(unread_count) if unread_count <= 99 else '99+'
+            badge_style = {'display': 'block', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+        
+        return notifications, badge_text, badge_style
+    except Exception as e:
+        print(f"Error marking all as read: {str(e)}")
+    
+    raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    [Output('notifications-store', 'data', allow_duplicate=True),
+     Output('notification-badge', 'children', allow_duplicate=True),
+     Output('notification-badge', 'style', allow_duplicate=True),
+     Output('notifications-offcanvas', 'is_open', allow_duplicate=True)],
+    Input('delete-all-notifications-btn', 'n_clicks'),
+    State('session-store', 'data'),
+    prevent_initial_call=True
+)
+def delete_all_notifications(n_clicks, session_data):
+    from api.notification import delete_all_notifications, get_unread_count
+    
+    if not n_clicks or n_clicks == 0:
+        raise dash.exceptions.PreventUpdate
+    
+    token = None
+    if session_data and isinstance(session_data, dict):
+        token = session_data.get('token')
+    
+    if not token:
+        raise dash.exceptions.PreventUpdate
+    
+    try:
+        delete_all_notifications(token=token)
+        
+        badge_style = {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+        
+        return {'data': [], 'total': 0}, '0', badge_style, False
+    except Exception as e:
+        print(f"Error deleting all notifications: {str(e)}")
+    
+    raise dash.exceptions.PreventUpdate
