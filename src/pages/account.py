@@ -294,24 +294,32 @@ def save_account_info(n_clicks, fullname, address, phone, session_data):
     [Output('account-form-container', 'style'),
         Output('account-view-container', 'style'),
         Output('account-card-title-text', 'children'),
-        Output('edit-account-btn-text', 'children')],
+        Output('edit-account-btn-text', 'children'),
+        Output('account-fullname', 'value', allow_duplicate=True),
+        Output('account-address', 'value', allow_duplicate=True),
+        Output('account-phone', 'value', allow_duplicate=True),
+        Output('account-message', 'children', allow_duplicate=True)],
         [Input('edit-account-btn', 'n_clicks'), Input('account-url', 'hash')],
-    State('account-form-container', 'style'),
+    [State('account-form-container', 'style'),
+     State('view-fullname', 'children'),
+     State('view-address', 'children'),
+     State('view-phone', 'children')],
+    prevent_initial_call=True
 )
-def toggle_account_form(n_clicks, url_hash, current_style):
+def toggle_account_form(n_clicks, url_hash, current_style, fullname, address, phone):
     if url_hash and url_hash.lstrip('#') == 'security':
-        return ({'display': 'none'}, {'display': 'none'}, "Đổi mật khẩu", "Chỉnh sửa")
+        return ({'display': 'none'}, {'display': 'none'}, "Đổi mật khẩu", "Chỉnh sửa", dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
     if url_hash and url_hash.lstrip('#') == 'settings':
-        return ({'display': 'none'}, {'display': 'none'}, "Cài đặt", "Chỉnh sửa")
+        return ({'display': 'none'}, {'display': 'none'}, "Cài đặt", "Chỉnh sửa", dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
     if not n_clicks:
-        return ({'display': 'none'}, {}, "Thông tin Tài khoản", "Chỉnh sửa")
+        return ({'display': 'none'}, {}, "Thông tin Tài khoản", "Chỉnh sửa", dash.no_update, dash.no_update, dash.no_update, dash.no_update)
 
     if not current_style or current_style.get('display') == 'none':
-        return ({'display': 'block'}, {'display': 'none'}, "Cập Nhật Thông Tin", "Hủy")
+        return ({'display': 'block'}, {'display': 'none'}, "Cập Nhật Thông Tin", "Hủy", dash.no_update, dash.no_update, dash.no_update, dash.no_update)
     else:
-        return ({'display': 'none'}, {}, "Thông Tin Tài Khoản", "Chỉnh sửa")
+        return ({'display': 'none'}, {}, "Thông Tin Tài Khoản", "Chỉnh sửa", fullname, address, phone, "")
 
 
 @callback(

@@ -102,15 +102,17 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                 dbc.Row([
                     dbc.Col([
                         html.I(className="fas fa-user-circle fa-5x text-primary mb-3"),
-                        html.H4(id='profile-username', className="mb-2"),
-                        dbc.Button([html.I(className="fas fa-edit me-2"), html.Span(id='edit-account-btn-text', children="Chỉnh sửa")], id='edit-account-btn', className='mb-3 btn-edit')
+                        html.H4(id='profile-username', className="mb-2")
                     ], className='text-center'),
                 ], className='mb-3'),
 
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
-                            dbc.CardHeader(html.H5([html.I(className="fas fa-edit me-2"), html.Span(id='account-card-title-text', children="Thông Tin Tài Khoản") ])),
+                            dbc.CardHeader(html.Div([
+                                html.H5([html.I(className="fas fa-edit me-2"), html.Span(id='account-card-title-text', children="Thông Tin Tài Khoản")], className="mb-0"),
+                                dbc.Button([html.I(className="fas fa-edit me-2"), html.Span(id='edit-account-btn-text', children="Chỉnh sửa")], id='edit-account-btn', className='btn-edit', size='sm')
+                            ], style={'display': 'flex', 'justify-content': 'space-between', 'align-items': 'center'})),
                             dbc.CardBody([
                                 dcc.Loading(id='loading-account-message', type='default', children=html.Div(id='account-message', className="mb-3")),
 
@@ -136,7 +138,7 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                                             dbc.Col([dbc.Label("Tạo lúc", className="fw-bold"), dbc.Input(id='account-created', type='text', disabled=True, className="mb-3")], md=6),
                                             dbc.Col([dbc.Label("Đăng nhập lần cuối", className="fw-bold"), dbc.Input(id='account-last-login', type='text', disabled=True, className="mb-3")], md=6)
                                         ]),
-                                        dbc.Row([dbc.Col(dbc.Button([html.I(className="fas fa-save me-2"), "Lưu Thay Đổi"], id='save-account-btn', color='primary', className="px-4"), width=12)])
+                                        dbc.Row([dbc.Col(dbc.Button([html.I(className="fas fa-save me-2"), "Lưu Thay Đổi"], id='save-account-btn', color='primary', className="px-4"), width=12, className="text-end")])
                                     ])
                                 ])
                             ])

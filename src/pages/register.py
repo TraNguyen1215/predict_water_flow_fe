@@ -82,17 +82,6 @@ layout = html.Div(
                                         html.Span(html.I(className='fas fa-eye'), className='pw-toggle', **{'data-target':'register-confirm-password'})
                                     ]),
 
-                                    dbc.Row([
-                                        dbc.Col(
-                                            dbc.Checkbox(
-                                                id='accept-terms',
-                                                label='Tôi đồng ý với điều khoản sử dụng',
-                                                value=False,
-                                                className="mb-2"
-                                            ), width=9
-                                        ),
-                                    ], className="mb-3"),
-
                                     dbc.Button(
                                         [html.I(className="fas me-2"), "Đăng Ký"],
                                         id='register-btn',
@@ -128,19 +117,15 @@ layout = html.Div(
     [State('register-username', 'value'),
      State('register-fullname', 'value'),
      State('register-password', 'value'),
-     State('register-confirm-password', 'value'),
-     State('accept-terms', 'value')],
+     State('register-confirm-password', 'value')],
     prevent_initial_call=True
 )
-def register_new_user(n_clicks, username, fullname, password, confirm_password, accept_terms):
+def register_new_user(n_clicks, username, fullname, password, confirm_password):
     if not n_clicks:
         raise PreventUpdate
 
     if not username or not fullname or not password or not confirm_password:
         return dbc.Alert("Vui lòng nhập đầy đủ thông tin!", color="warning", dismissable=True), dash.no_update, dash.no_update
-
-    if not accept_terms:
-        return dbc.Alert("Vui lòng đồng ý với điều khoản sử dụng!", color="warning", dismissable=True), dash.no_update, dash.no_update
 
     if password != confirm_password:
         return dbc.Alert("Mật khẩu xác nhận không khớp!", color="danger", dismissable=True), dash.no_update, dash.no_update

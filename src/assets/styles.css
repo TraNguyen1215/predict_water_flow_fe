@@ -2617,13 +2617,12 @@ textarea {
     }
 }
 
-/* ============ TOGGLE/SWITCH STYLES ============ */
+/* ============ CHECKBOX & TOGGLE STYLES ============ */
 
-/* Bo tròn Dash Bootstrap Checklist switch toggle */
 .form-check-input[type="checkbox"] {
-    border-radius: 50px !important;
-    width: 3.5rem !important;
-    height: 1.75rem !important;
+    border-radius: 6px !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
 }
 
 .form-check-input[type="checkbox"]:checked {
@@ -2636,11 +2635,16 @@ textarea {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
 }
 
-/* Đảm bảo switch indicator bo tròn */
-.form-check-input[type="checkbox"]::before {
+.form-switch .form-check-input[type="checkbox"] {
+    border-radius: 50px !important;
+    width: 3.5rem !important;
+    height: 1.75rem !important;
+}
+
+.form-switch .form-check-input[type="checkbox"]::before {
     border-radius: 50% !important;
 }
 
-.form-check-input[type="checkbox"]::after {
+.form-switch .form-check-input[type="checkbox"]::after {
     border-radius: 50% !important;
 }

@@ -47,10 +47,11 @@ def format_display_time(iso_ts: str) -> str:
     except Exception:
         return iso_ts
 
-def fetch_sensor_data(token=None):
+def fetch_sensor_data(token=None, date_str=None):
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
-        response_data = get_data_by_date(today, token)
+        if date_str is None:
+            date_str = datetime.now().strftime('%Y-%m-%d')
+        response_data = get_data_by_date(date_str, token)
 
         if isinstance(response_data, dict) and 'data' in response_data:
             data = response_data['data']
@@ -371,6 +372,21 @@ layout = html.Div([
                         close_button=True
                     ),
                     dbc.ModalBody([
+                        html.Div([
+                            html.Label("Chọn Ngày:", className="fw-bold mb-2"),
+                            dcc.DatePickerSingle(
+                                id='soil-moisture-date-picker',
+                                date=datetime.now().strftime('%Y-%m-%d'),
+                                display_format='DD/MM/YYYY',
+                                style={
+                                    'width': '100%',
+                                    'padding': '8px',
+                                    'border': '1px solid #ddd',
+                                    'border-radius': '4px',
+                                    'fontSize': '14px'
+                                }
+                            )
+                        ], className="mb-4"),
                         dcc.Graph(id='soil-moisture-chart', config={'displayModeBar': False}),
                         html.Div([
                             html.Div([html.Small("Trung bình", className="small text-muted"), html.Strong(id='soil-moisture-avg', children='N/A', className='ms-2')], className='me-4'),
@@ -922,6 +938,18 @@ def init_date_picker(is_open):
     raise PreventUpdate
 
 @callback(
+    Output('soil-moisture-date-picker', 'date'),
+    [
+        Input('soil-moisture-modal', 'is_open'),
+    ]
+)
+def init_soil_moisture_date_picker(is_open):
+    """Initialize soil moisture date picker with today's date when modal opens."""
+    if is_open:
+        return datetime.now().strftime('%Y-%m-%d')
+    raise PreventUpdate
+
+@callback(
     Output('soil-moisture-modal', 'is_open'),
     [
         Input('soil-moisture-card', 'n_clicks'),
@@ -946,20 +974,24 @@ def toggle_soil_moisture_modal(n_clicks_card, n_clicks_close, is_open):
     ],
     [
         Input('soil-moisture-modal', 'is_open'),
+        Input('soil-moisture-date-picker', 'date'),
     ],
     [
         State('session-store', 'data')
     ]
 )
-def update_soil_moisture_chart(is_open, session):
-    """Update soil moisture chart when modal opens."""
+def update_soil_moisture_chart(is_open, selected_date, session):
+    """Update soil moisture chart when modal opens or date is changed."""
     if not is_open:
         raise PreventUpdate
     
     token = session.get('token') if session else None
     
     try:
-        df = fetch_sensor_data(token)
+        # Use selected date or fall back to today
+        date_str = selected_date if selected_date else datetime.now().strftime('%Y-%m-%d')
+        
+        df = fetch_sensor_data(token, date_str)
         
         if df.empty:
             empty_figure = {
