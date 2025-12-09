@@ -40,16 +40,18 @@ def create_sensor_card(sensor, pump_name=""):
                     ]),
                     html.Div([
                         dbc.Button(
-                            html.I(className="fas fa-edit"),
+                            [html.I(className="fas fa-edit me-1"), "Sửa"],
                             id={'type': 'device-edit-sensor', 'index': sensor.get('ma_cam_bien')},
-                            color="light",
+                            color="primary",
+                            outline=True,
                             size="sm",
                             className="me-2"
                         ),
                         dbc.Button(
-                            html.I(className="fas fa-trash"),
+                            [html.I(className="fas fa-trash me-1"), "Xóa"],
                             id={'type': 'device-delete-sensor', 'index': sensor.get('ma_cam_bien')},
-                            color="light",
+                            color="danger",
+                            outline=True,
                             size="sm"
                         )
                     ])
@@ -61,7 +63,6 @@ def create_sensor_card(sensor, pump_name=""):
                 ]),
                 
                 html.Small([
-                    html.I(className="fas fa-calendar me-1"),
                     f"Lắp đặt: {sensor.get('ngay_lap_dat', 'N/A')}"
                 ], className="text-muted d-block")
             ])
@@ -81,20 +82,23 @@ layout = html.Div([
             ), md=12)
         ], className='my-3'),
 
-        # Phần Máy Bơm (Một máy bơm)
+        # Phần Máy Bơm (Một máy bơm) và Lịch sử
         dbc.Row([
             dbc.Col([
-                html.H5("⚙️ Máy Bơm Chính", className="section-title mb-3")
+                html.H5("Máy Bơm Chính", className="section-title mb-3")
             ], md=12)
         ]),
 
-        dbc.Row(id="device-main-pump-container", className="mb-4"),
+        dbc.Row([
+            dbc.Col(id="device-main-pump-container", md=8, className="mb-4"),
+            dbc.Col(id="device-pump-history-container", md=4, className="mb-4")
+        ]),
 
         # Phần Cảm Biến (Tối đa 4 cảm biến)
         dbc.Row([
             dbc.Col([
                 html.Div([
-                    html.H5("📊 4 Cảm Biến Hệ Thống", className="section-title mb-0"),
+                    html.H5("Cảm Biến Hệ Thống", className="section-title mb-0"),
                     dbc.Button([
                         html.I(className="fas fa-plus me-2"),
                         "Thêm cảm biến"
@@ -106,6 +110,19 @@ layout = html.Div([
         dbc.Row(id="device-sensors-grid", className="sensors-grid mb-4"),
 
         html.Div(id="device-no-sensors-alert", style={"display": "none"}),
+
+        # Phần Biểu đồ Cảm Biến (dưới cùng)
+        dbc.Row([
+            dbc.Col([
+                html.H5("Dữ Liệu Cảm Biến", className="section-title mb-3")
+            ], md=12)
+        ]),
+
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='device-sensor-chart')
+            ], md=12, className="mb-4")
+        ]),
 
         # Data stores
         dcc.Store(id='device-pump-data-store'),
@@ -132,8 +149,7 @@ layout = html.Div([
                         id='device-pump-che-do',
                         options=[
                             {'label': 'Thủ công', 'value': 0},
-                            {'label': 'Tự động', 'value': 1},
-                            {'label': 'Bảo trì', 'value': 2}
+                            {'label': 'Tự động', 'value': 1}
                         ],
                         value=0,
                         clearable=False
@@ -196,10 +212,10 @@ layout = html.Div([
 # ============ LOAD DATA CALLBACKS ============
 
 @callback(
-    [Output('device-pump-data-store', 'data'), Output('device-sensor-data-store', 'data')],
+    [Output('device-pump-data-store', 'data', allow_duplicate=True), Output('device-sensor-data-store', 'data', allow_duplicate=True)],
     [Input('device-refresh-interval', 'n_intervals')],
     State('session-store', 'data'),
-    prevent_initial_call=False
+    prevent_initial_call='initial_duplicate'
 )
 def device_load_all_data(n_intervals, session_data):
     token = None
@@ -238,102 +254,185 @@ def device_render_main_pump(pump_data):
     # print(f"[DEBUG] device_render_main_pump: pump_data = {pump_data}")
     
     if not pump_data or not isinstance(pump_data, dict):
-        return dbc.Alert("❌ Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
+        return dbc.Alert("Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
     
     pumps = pump_data.get('data', [])
     # print(f"[DEBUG] pumps = {pumps}")
     
     if not pumps:
-        return dbc.Alert("❌ Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
+        return dbc.Alert("Chưa có máy bơm. Vui lòng thêm máy bơm mới.", color="info", className="mt-3")
     
     pump = pumps[0]  # Lấy máy bơm đầu tiên (chỉ có 1 máy bơm)
     # print(f"[DEBUG] rendering pump: {pump}")
     
-    return dbc.Col([
-        dbc.Card([
+    return dbc.Card([
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.H5(pump.get('ten_may_bom', 'Máy bơm'), className="mb-2"),
+                        html.P(pump.get('mo_ta', 'Mô tả máy bơm'), className="text-muted"),
+                    ])
+                ], md=8),
+                dbc.Col([
+                    html.Div([
+                        create_status_badge(pump.get('trang_thai', False)),
+                        dbc.Badge(
+                            {0: "Thủ công", 1: "Tự động"}.get(pump.get('che_do', 0), "Thủ công"),
+                            color="primary",
+                            className="ms-2"
+                        )
+                    ], className="text-end")
+                ], md=4, className="d-flex justify-content-end align-items-center")
+            ]),
+            
+            html.Hr(className="my-3"),
+            
+            dbc.Row([
+                dbc.Col([
+                    html.P("Lưu lượng", className="text-muted small mb-1"),
+                    html.H6(f"{pump.get('luu_luong', 0)} L/phút", className="mb-0")
+                ], xs=6, sm=3),
+                dbc.Col([
+                    html.P("Mưa", className="text-muted small mb-1"),
+                    html.H6("Có" if pump.get('mua', False) else "Không", className="mb-0")
+                ], xs=6, sm=3),
+                dbc.Col([
+                    html.P("Nhiệt độ", className="text-muted small mb-1"),
+                    html.H6(f"{pump.get('nhiet_do', 0)}°C", className="mb-0")
+                ], xs=6, sm=3),
+                dbc.Col([
+                    html.P("Độ ẩm", className="text-muted small mb-1"),
+                    html.H6(f"{pump.get('do_am', 0)}%", className="mb-0")
+                ], xs=6, sm=3),
+            ]),
+            
+            html.Hr(className="my-3"),
+            
+            html.Div([
+                dbc.Button(
+                    [html.I(className="fas fa-edit me-2"), "Sửa"],
+                    id={'type': 'device-edit-pump', 'index': pump.get('ma_may_bom')},
+                    color="primary",
+                    outline=True,
+                    size="sm",
+                    className="me-2"
+                ),
+                dbc.Button(
+                    [html.I(className="fas fa-trash me-2"), "Xóa"],
+                    id={'type': 'device-delete-pump', 'index': pump.get('ma_may_bom')},
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    className="me-2"
+                ),
+                dbc.Button([
+                    html.I(className="fas fa-plus me-2"),
+                    "Thêm"
+                ],
+                    id="device-open-add-pump",
+                    color="success",
+                    size="sm",
+                    className="ms-auto"
+                )
+            ], className="d-flex")
+        ])
+    ], className="pump-main-card")
+
+
+# ============ PUMP HISTORY CALLBACK ============
+
+@callback(
+    Output('device-pump-history-container', 'children'),
+    Input('device-pump-data-store', 'data')
+)
+def device_render_pump_history(pump_data):
+    if not pump_data or not isinstance(pump_data, dict):
+        return dbc.Card([
             dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            html.H4(pump.get('ten_may_bom', 'Máy bơm'), className="mb-2"),
-                            html.P(pump.get('mo_ta', 'Mô tả máy bơm'), className="text-muted"),
-                        ])
-                    ], md=6),
-                    dbc.Col([
-                        html.Div([
-                            create_status_badge(pump.get('trang_thai', False)),
-                            dbc.Badge(
-                                {0: "Thủ công", 1: "Tự động", 2: "Bảo trì"}.get(pump.get('che_do', 0), "Thủ công"),
-                                color="primary",
-                                className="ms-2"
-                            )
-                        ], className="text-end")
-                    ], md=6, className="d-flex justify-content-end align-items-center")
-                ]),
-                
-                html.Hr(className="my-3"),
-                
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            html.Small("💧 Lưu lượng", className="text-muted d-block mb-1"),
-                            html.H6(f"{pump.get('luu_luong', 0)} L/phút", className="mb-0")
-                        ], className="metric-box")
-                    ], xs=6, sm=3),
-                    dbc.Col([
-                        html.Div([
-                            html.Small("🌧️ Mưa", className="text-muted d-block mb-1"),
-                            html.H6("Có" if pump.get('mua', False) else "Không", className="mb-0")
-                        ], className="metric-box")
-                    ], xs=6, sm=3),
-                    dbc.Col([
-                        html.Div([
-                            html.Small("🌡️ Nhiệt độ", className="text-muted d-block mb-1"),
-                            html.H6(f"{pump.get('nhiet_do', 0)}°C", className="mb-0")
-                        ], className="metric-box")
-                    ], xs=6, sm=3),
-                    dbc.Col([
-                        html.Div([
-                            html.Small("💨 Độ ẩm", className="text-muted d-block mb-1"),
-                            html.H6(f"{pump.get('do_am', 0)}%", className="mb-0")
-                        ], className="metric-box")
-                    ], xs=6, sm=3),
-                ]),
-                
-                html.Hr(className="my-3"),
-                
-                html.Div([
-                    dbc.Button(
-                        html.I(className="fas fa-edit me-2"),
-                        id={'type': 'device-edit-pump', 'index': pump.get('ma_may_bom')},
-                        color="warning",
-                        outline=True,
-                        size="sm",
-                        className="me-2",
-                        n_clicks=0
-                    ),
-                    dbc.Button(
-                        html.I(className="fas fa-trash me-2"),
-                        id={'type': 'device-delete-pump', 'index': pump.get('ma_may_bom')},
-                        color="danger",
-                        outline=True,
-                        size="sm",
-                        n_clicks=0
-                    ),
-                    dbc.Button([
-                        html.I(className="fas fa-plus me-2"),
-                        "Thêm máy bơm"
-                    ],
-                        id="device-open-add-pump",
-                        color="success",
-                        size="sm",
-                        className="ms-auto",
-                        n_clicks=0
-                    )
-                ], className="d-flex")
+                html.P("Không có dữ liệu", className="text-muted")
             ])
-        ], className="pump-main-card")
-    ], width=12, className="mb-4")
+        ])
+    
+    pumps = pump_data.get('data', [])
+    if not pumps:
+        return dbc.Card([
+            dbc.CardBody([
+                html.P("Không có dữ liệu", className="text-muted")
+            ])
+        ])
+    
+    pump = pumps[0]
+    
+    return dbc.Card([
+        dbc.CardHeader(html.H6("Nhật ký hoạt động", className="mb-0")),
+        dbc.CardBody([
+            html.Div([
+                html.P("Trạng thái hiện tại:", className="mb-1"),
+                create_status_badge(pump.get('trang_thai', False)),
+                html.Hr(className="my-2"),
+                html.P("Chế độ hoạt động:", className="mb-1"),
+                html.P(
+                    {0: "Thủ công", 1: "Tự động"}.get(pump.get('che_do', 0), "Thủ công"),
+                    className="fw-bold"
+                ),
+                html.Hr(className="my-2"),
+                html.P("Ngày cập nhật:", className="mb-1"),
+                html.Small(
+                    format_datetime(pump.get('ngay_cap_nhat', '')),
+                    className="text-muted"
+                ),
+            ], className="text-muted")
+        ])
+    ])
+
+
+# ============ SENSOR CHART CALLBACK ============
+
+@callback(
+    Output('device-sensor-chart', 'figure'),
+    Input('device-sensor-data-store', 'data')
+)
+def device_render_sensor_chart(sensor_data):
+    import plotly.graph_objects as go
+    
+    if not sensor_data or not isinstance(sensor_data, dict):
+        return {
+            'data': [],
+            'layout': go.Layout(title="Không có dữ liệu cảm biến")
+        }
+    
+    sensors = sensor_data.get('data', [])
+    if not sensors:
+        return {
+            'data': [],
+            'layout': go.Layout(title="Không có dữ liệu cảm biến")
+        }
+    
+    # Tạo biểu đồ với dữ liệu từ cảm biến
+    sensor_names = [s.get('ten_cam_bien', 'Cảm biến') for s in sensors]
+    sensor_values = [s.get('gia_tri', 0) for s in sensors]
+    
+    fig = go.Figure(data=[
+        go.Bar(
+            x=sensor_names,
+            y=sensor_values,
+            marker=dict(color='#0358a3'),
+            text=sensor_values,
+            textposition='auto',
+        )
+    ])
+    
+    fig.update_layout(
+        title="Dữ liệu cảm biến thời gian thực",
+        xaxis_title="Cảm biến",
+        yaxis_title="Giá trị",
+        hovermode='x unified',
+        margin=dict(l=50, r=50, t=50, b=50),
+        height=300
+    )
+    
+    return fig
 
 
 # ============ SENSORS DISPLAY CALLBACKS ============

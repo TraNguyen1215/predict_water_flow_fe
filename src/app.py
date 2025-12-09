@@ -3,7 +3,7 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 from flask import session
 import os
-from pages import home, login, register, account, settings, sensor, pump, pump_detail, sensor_data, documentation, predict_data, esp_flash, devices
+from pages import home, login, register, account, settings, pump_detail, sensor_data, documentation, predict_data, devices
 from pages.admin import *
 from components.navbar import create_navbar
 from components.footer import create_footer
@@ -65,16 +65,6 @@ def display_page(pathname, session_data):
             page = account.layout
         else:
             page = login.layout
-    elif pathname == '/sensor':
-        if is_authenticated and is_admin == False:
-            page = sensor.layout
-        else:
-            page = login.layout
-    elif pathname == '/pump':
-        if is_authenticated and is_admin == False:
-            page = pump.layout
-        else:
-            page = login.layout
     elif pathname == '/devices':
         if is_authenticated and is_admin == False:
             page = devices.layout
@@ -91,25 +81,11 @@ def display_page(pathname, session_data):
             page = predict_data.layout
         else:
             page = login.layout
-    elif pathname == '/esp-flash':
-        if is_authenticated and is_admin == False:
-            page = esp_flash.layout
-        else:
-            page = login.layout
-    elif pathname == '/documentation':
+    elif pathname == '/admin':
         page = documentation.layout
     elif pathname == '/admin/models':
         if is_authenticated and is_admin:
             page = admin_models.layout
-        else:
-            page = login.layout
-    elif pathname == '/admin/firmware':
-        if is_authenticated and is_admin:
-            try:
-                from pages.admin import admin_firmware
-                page = admin_firmware.layout
-            except Exception:
-                page = admin.layout
         else:
             page = login.layout
     elif pathname == '/admin/sensor-types':
