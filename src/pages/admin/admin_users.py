@@ -28,6 +28,51 @@ def _coerce_bool(value, default=False):
     return default
 
 
+def apply_user_filters(rows, search_text='', role_filter='all', status_filter='all', filter_date=None):
+    """Apply all user filters to rows"""
+    filtered_rows = []
+    
+    for row in rows:
+        # Search filter
+        if search_text:
+            search_lower = search_text.lower()
+            name_match = search_lower in (row['fullname'] or '').lower()
+            phone_match = search_lower in (row['phone'] or '').lower()
+            address_match = search_lower in (row['address'] or '').lower()
+            if not (name_match or phone_match or address_match):
+                continue
+        
+        # Role filter
+        if role_filter != 'all':
+            if role_filter == 'admin' and not row['is_admin']:
+                continue
+            if role_filter == 'user' and row['is_admin']:
+                continue
+        
+        # Status filter
+        if status_filter != 'all':
+            if status_filter == 'active' and not row['active']:
+                continue
+            if status_filter == 'inactive' and row['active']:
+                continue
+        
+        # Date filter
+        if filter_date:
+            try:
+                target_date = pd.to_datetime(filter_date, errors='coerce').date()
+                if row['created_at']:
+                    if row['created_at'].date() != target_date:
+                        continue
+                else:
+                    continue
+            except (TypeError, ValueError, AttributeError):
+                continue
+        
+        filtered_rows.append(row)
+    
+    return filtered_rows
+
+
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-users-url', refresh=False),
@@ -35,6 +80,13 @@ layout = html.Div([
     dcc.Store(id='admin-users-page-store', data=[]),
     dcc.Store(id='admin-current-username-users', data=None),
     dcc.Store(id='admin-users-table-page', data={'page': 1}),
+    dcc.Store(id='admin-users-filter-store', data={
+        'search': '',
+        'role': 'all',
+        'status': 'all',
+        'start_date': None,
+        'end_date': None
+    }),
 
     dcc.Loading(html.Div(id='admin-users-dashboard'), type='default'),
 
@@ -54,10 +106,6 @@ layout = html.Div([
         dbc.ModalBody([
             dbc.Form([
                 dbc.Row([
-                    dbc.Col(dbc.Label('Tên đăng nhập', className='fw-bold'), md=12),
-                    dbc.Col(dbc.Input(id='user-username-users', type='text', readonly=True), md=12),
-                ]),
-                dbc.Row([
                     dbc.Col(dbc.Label('Họ tên', className='fw-bold'), md=12),
                     dbc.Col(dbc.Input(id='user-fullname-users', type='text', readonly=True), md=12),
                 ]),
@@ -71,13 +119,13 @@ layout = html.Div([
                 ]),
                 dbc.Row([
                     dbc.Col(dbc.Checkbox(id='user-is-admin-users', label='Quyền admin'), md=6),
-                    dbc.Col(dbc.Checkbox(id='user-is-active-users', label='Hoạt động', value=True, disabled=True), md=6),
+                    dbc.Col(dbc.Checkbox(id='user-is-active-users', label='Hoạt động', value=True), md=6),
                 ])
             ])
         ]),
         dbc.ModalFooter([
             dbc.Button('Lưu', id='save-user-btn-users', color='primary'),
-            dbc.Button('Hủy', id='cancel-user-btn-users', className='ms-2')
+            dbc.Button('Hủy', id='cancel-user-btn-users', color='danger', className='ms-2')
         ])
     ], id='user-modal-users', is_open=False, size='lg', style={"marginTop": "150px"}),
 
@@ -112,10 +160,29 @@ def load_users_page(pathname, session_data):
 
 
 @callback(
-    Output('admin-users-dashboard', 'children'),
-    [Input('admin-users-page-store', 'data'), Input('admin-users-table-page', 'data')]
+    Output('admin-users-filter-store', 'data'),
+    [Input('user-search-input', 'value'),
+     Input('user-role-filter', 'value'),
+     Input('user-status-filter', 'value'),
+     Input('user-filter-date', 'value')],
+    prevent_initial_call='initial_duplicate'
 )
-def render_users_dashboard(users, page_state):
+def update_user_filters(search, role, status, filter_date):
+    return {
+        'search': search or '',
+        'role': role or 'all',
+        'status': status or 'all',
+        'filter_date': filter_date
+    }
+
+
+@callback(
+    Output('admin-users-dashboard', 'children'),
+    [Input('admin-users-page-store', 'data'),
+     Input('admin-users-table-page', 'data'),
+     Input('admin-users-filter-store', 'data')]
+)
+def render_users_dashboard(users, page_state, filter_data):
     def _extract_first(item, keys, default=''):
         for key in keys:
             val = item.get(key)
@@ -137,7 +204,6 @@ def render_users_dashboard(users, page_state):
                 return py_dt
         except Exception:
             return None
-        return None
 
     if not users:
         empty_state = dbc.Container([
@@ -231,8 +297,20 @@ def render_users_dashboard(users, page_state):
             'last_login': last_login
         })
 
-    inactive_count = total_users - active_count
-    active_ratio = (active_count / total_users * 100) if total_users else 0
+    # Apply filters
+    search_text = (filter_data.get('search') or '').strip() if filter_data else ''
+    role_filter = filter_data.get('role', 'all') if filter_data else 'all'
+    status_filter = filter_data.get('status', 'all') if filter_data else 'all'
+    filter_date = filter_data.get('filter_date') if filter_data else None
+    
+    processed_rows = apply_user_filters(processed_rows, search_text, role_filter, status_filter, filter_date)
+    
+    # Recalculate active/inactive counts based on filtered data
+    filtered_active_count = sum(1 for row in processed_rows if row['active'])
+    filtered_inactive_count = len(processed_rows) - filtered_active_count
+    filtered_total = len(processed_rows)
+    
+    active_ratio = (filtered_active_count / filtered_total * 100) if filtered_total else 0
     monthly_registrations.sort(key=lambda item: item['date'], reverse=True)
     weekly_registrations.sort(key=lambda item: item['date'], reverse=True)
     monthly_total = len([item for item in monthly_registrations if item['date'] >= month_start_dt])
@@ -263,10 +341,10 @@ def render_users_dashboard(users, page_state):
         )
 
     summary_cards = html.Div([
-        build_summary_card('Tổng người dùng', total_users, 'Trong hệ thống', 'fas fa-users'),
-        build_summary_card('Đang hoạt động', active_count, f"{active_ratio:.0f}% tổng số", 'fas fa-user-check',
+        build_summary_card('Tổng người dùng', filtered_total, 'Trong bộ lọc hiện tại', 'fas fa-users'),
+        build_summary_card('Đang hoạt động', filtered_active_count, f"{active_ratio:.0f}% được lọc", 'fas fa-user-check',
                         dbc.Progress(value=active_ratio, max=100, className='user-progress', color='dark')),
-        build_summary_card('Không hoạt động', inactive_count, f"{inactive_count} người dùng", 'fas fa-user-slash'),
+        build_summary_card('Không hoạt động', filtered_inactive_count, f"{filtered_inactive_count} người dùng", 'fas fa-user-slash'),
         build_summary_card('Đăng ký mới', monthly_total, 'Tháng này', 'fas fa-user-plus')
     ], className='admin-summary-grid user-summary-grid')
 
@@ -279,35 +357,6 @@ def render_users_dashboard(users, page_state):
         if not dt:
             return '--'
         return dt.strftime('%Y-%m-%d %H:%M')
-
-    def build_registration_card(title, items):
-        if not items:
-            body = html.Div('Không có dữ liệu', className='user-card-empty')
-        else:
-            list_class = 'user-card-list'
-            if len(items) > 3:
-                list_class += ' user-card-list-scroll'
-            body = html.Div([
-                html.Div([
-                    html.Div(html.Strong(entry['name']), className='user-card-text'),
-                    html.Div([
-                        html.Span(format_date(entry['date']), className='user-card-date'),
-                        html.Span('Hoạt động' if entry['active'] else 'Không hoạt động',
-                                className=f"user-status-badge {'active' if entry['active'] else 'inactive'}")
-                    ], className='user-card-meta')
-                ], className='user-card-item')
-                for entry in items
-            ], className=list_class)
-
-        return dbc.Card([
-            dbc.CardHeader(html.Span(title, className='user-card-title')),
-            dbc.CardBody(body)
-        ], className='user-card')
-
-    lists_section = html.Div([
-        build_registration_card('Người dùng đăng ký tuần này', weekly_registrations),
-        build_registration_card('Người dùng đăng ký tháng này', monthly_registrations)
-    ], className='user-lists-grid')
 
     table_header = html.Thead(html.Tr([
         html.Th('Người dùng'),
@@ -354,10 +403,7 @@ def render_users_dashboard(users, page_state):
         ], className='user-actions')
 
         table_rows.append(html.Tr([
-            html.Td(html.Div([
-                html.Strong(row['fullname'] or identifier),
-                html.Span(identifier, className='user-table-username')
-            ])),
+            html.Td(html.Strong(row['fullname'] or identifier)),
             html.Td(row['phone'] or '--', className='text-nowrap'),
             html.Td(html.Div(row['address'] or '--', className='user-table-address')),
             html.Td(row['role_label'], className='user-table-role'),
@@ -414,9 +460,76 @@ def render_users_dashboard(users, page_state):
         dbc.CardBody([table, html.Div(pagination_controls, className='d-flex justify-content-center mt-3')])
     ], className='user-table-card')
 
+    # Filter controls (right aligned, equal height and width)
+    filter_controls = dbc.Container([
+        dbc.Row([
+            dbc.Col(width=12)
+        ]),
+        dbc.Row([
+            dbc.Col(width=12, className='d-flex justify-content-end gap-2'),
+        ], style={'display': 'flex', 'justifyContent': 'flex-end'}),
+        dbc.Row([
+            dbc.Col(
+                html.Div([
+                    dbc.InputGroup([
+                        dbc.InputGroupText(html.I(className='fas fa-search')),
+                        dbc.Input(
+                            id='user-search-input',
+                            type='text',
+                            placeholder='Tìm kiếm',
+                            style={'width': '140px', 'height': '40px'},
+                        )
+                    ], style={'width': '240px'}),
+                    dcc.Dropdown(
+                        id='user-role-filter',
+                        options=[
+                            {'label': 'Tất cả vai trò', 'value': 'all'},
+                            {'label': 'Người dùng', 'value': 'user'},
+                            {'label': 'Quản trị viên', 'value': 'admin'}
+                        ],
+                        value='all',
+                        clearable=False,
+                        style={'width': '180px', 'height': '40px'}
+                    ),
+                    dcc.Dropdown(
+                        id='user-status-filter',
+                        options=[
+                            {'label': 'Tất cả trạng thái', 'value': 'all'},
+                            {'label': 'Hoạt động', 'value': 'active'},
+                            {'label': 'Không hoạt động', 'value': 'inactive'}
+                        ],
+                        value='all',
+                        clearable=False,
+                        style={'width': '180px', 'height': '40px'}
+                    ),
+                    dbc.Input(
+                        id='user-filter-date',
+                        type='date',
+                        placeholder='Chọn ngày',
+                        style={'width': '180px', 'height': '40px'}
+                    ),
+                    dbc.Button(
+                        'Xóa lọc',
+                        id='user-filter-reset',
+                        color='danger',
+                        size='sm',
+                        style={'width': '100px', 'height': '40px'},
+                        className='d-flex align-items-center justify-content-center'
+                    )
+                ], style={
+                    'display': 'flex',
+                    'gap': '8px',
+                    'justifyContent': 'flex-end',
+                    'marginBottom': '16px'
+                }),
+                width=12
+            )
+        ])
+    ], fluid=True)
+
     dashboard = dbc.Container([
         summary_cards,
-        lists_section,
+        filter_controls,
         table_card
     ], fluid=True, className='admin-dashboard-container user-dashboard')
 
@@ -469,7 +582,7 @@ def change_users_table_page(page_clicks, prev_clicks, next_clicks, page_state, u
 
 @callback(
     [Output('user-modal-users', 'is_open'), Output('modal-title-users', 'children'), Output('admin-current-username-users', 'data'),
-     Output('user-username-users', 'value'), Output('user-fullname-users', 'value'), Output('user-phone-users', 'value'),
+     Output('user-fullname-users', 'value'), Output('user-phone-users', 'value'),
      Output('user-address-users', 'value'), Output('user-is-admin-users', 'value'), Output('user-is-active-users', 'value')],
     Input({'type': 'edit-user-users', 'index': dash.dependencies.ALL}, 'n_clicks'),
     [State('admin-users-page-store', 'data'), State('session-store', 'data'), State('admin-current-username-users', 'data')],
@@ -505,11 +618,25 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
             quan_tri_vien = _coerce_bool(u.get('quan_tri_vien'), default=False)
             trang_thai = _coerce_bool(u.get('trang_thai'), default=True)
             
-            return True, 'Chỉnh sửa người dùng', ten_dang_nhap, ten_dang_nhap, ho_ten, so_dien_thoai, dia_chi, quan_tri_vien, trang_thai
+            return True, 'Chỉnh sửa người dùng', ten_dang_nhap, ho_ten, so_dien_thoai, dia_chi, quan_tri_vien, trang_thai
     except Exception:
         pass
 
     raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    [Output('user-search-input', 'value'),
+     Output('user-role-filter', 'value'),
+     Output('user-status-filter', 'value'),
+     Output('user-filter-date', 'value')],
+    Input('user-filter-reset', 'n_clicks'),
+    prevent_initial_call=True
+)
+def reset_user_filters(reset_clicks):
+    if not reset_clicks:
+        raise dash.exceptions.PreventUpdate
+    return '', 'all', 'all', None
 
 
 @callback(
@@ -518,12 +645,12 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
      Output('admin-users-toast', 'children', allow_duplicate=True), Output('admin-users-toast', 'icon', allow_duplicate=True),
      Output('admin-users-toast', 'is_open', allow_duplicate=True)],
     [Input('save-user-btn-users', 'n_clicks'), Input('confirm-delete-btn-users', 'n_clicks')],
-    [State('admin-current-username-users', 'data'), State('user-username-users', 'value'), State('user-fullname-users', 'value'),
+    [State('admin-current-username-users', 'data'), State('user-fullname-users', 'value'),
      State('user-phone-users', 'value'), State('user-address-users', 'value'),
      State('user-is-admin-users', 'value'), State('user-is-active-users', 'value'), State('session-store', 'data')],
     prevent_initial_call=True
 )
-def handle_save_or_delete_users(save_click, del_click, current_username, username, fullname, phone, address, is_admin, is_active, session_data):
+def handle_save_or_delete_users(save_click, del_click, current_username, fullname, phone, address, is_admin, is_active, session_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -535,16 +662,13 @@ def handle_save_or_delete_users(save_click, del_click, current_username, usernam
     token = session_data.get('token')
 
     if action == 'save-user-btn-users':
+        # Admin chỉ được phép chỉnh sửa quyền quản trị và trạng thái
         data = {
-            'ten_dang_nhap': username,
-            'ho_ten': fullname or '',
-            'so_dien_thoai': phone or '',
-            'dia_chi': address or '',
             'trang_thai': bool(is_active),
             'quan_tri_vien': bool(is_admin)
         }
 
-        target_username = current_username or username
+        target_username = current_username
 
         success, message = api_user.update_user(target_username, data, token=token)
         toast_message = message or ('Cập nhật người dùng thành công' if success else 'Cập nhật người dùng thất bại')
