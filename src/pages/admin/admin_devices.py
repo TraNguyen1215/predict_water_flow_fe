@@ -307,6 +307,7 @@ def create_sensor_type_modal():
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-devices-url', refresh=False),
+    dcc.Store(id='session-store', storage_type='session'),
     dcc.Store(id='admin-devices-data-store', data={}),
     
     dbc.Toast(
@@ -508,9 +509,10 @@ layout = html.Div([
     State('session-store', 'data'),
     prevent_initial_call='initial_duplicate'
 )
-def load_devices_data(pathname, session_data):
+def load_or_reset_devices_data(pathname, session_data):
+    """Load devices data when navigating to /admin/devices, reset when navigating away"""
     if pathname != '/admin/devices':
-        raise PreventUpdate
+        return {}
     
     if not session_data or not session_data.get('authenticated') or not session_data.get('is_admin'):
         raise PreventUpdate

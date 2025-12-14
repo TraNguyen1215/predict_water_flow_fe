@@ -652,7 +652,7 @@ def go_back(n_clicks):
 
 
 @callback(
-    [Output('pump-control-result', 'children', allow_duplicate=True), Output('pump-detail-store', 'data', allow_duplicate=True), Output('pump-control-last-action', 'data')],
+    [Output('pump-control-result', 'children', allow_duplicate=True), Output('pump-detail-store', 'data', allow_duplicate=True), Output('pump-control-last-action', 'data', allow_duplicate=True)],
     [Input('pump-start-btn', 'n_clicks'), Input('pump-stop-btn', 'n_clicks'), Input('pump-mode-select', 'value')],
     [State('pump-detail-store', 'data'), State('session-store', 'data'), State('pump-control-last-action', 'data')],
     prevent_initial_call=True

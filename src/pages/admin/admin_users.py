@@ -31,6 +31,7 @@ def _coerce_bool(value, default=False):
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-users-url', refresh=False),
+    dcc.Store(id='session-store', storage_type='session'),
     dcc.Store(id='admin-users-page-store', data=[]),
     dcc.Store(id='admin-current-username-users', data=None),
     dcc.Store(id='admin-users-table-page', data={'page': 1}),

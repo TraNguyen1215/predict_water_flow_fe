@@ -163,5 +163,18 @@ def handle_logout(pathname):
         return {}, '/login'
     return dash.no_update, dash.no_update
 
+@app.callback(
+    [Output('pump-detail-store', 'data'),
+     Output('selected-pump-store', 'data'),
+     Output('pump-control-last-action', 'data')],
+    Input('url', 'pathname'),
+    prevent_initial_call=True
+)
+def reset_stores_on_navigation(pathname):
+    """Reset memory stores when navigating to admin pages to avoid data carryover"""
+    if pathname and pathname.startswith('/admin'):
+        return {}, {'ma_may_bom': None, 'ten_may_bom': None}, {'mode': None, 'trang_thai': None}
+    return dash.no_update, dash.no_update, dash.no_update
+
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=8050)

@@ -312,68 +312,47 @@ def handle_model_upload(upload_clicks, file_content, name, version, filename, se
     prevent_initial_call=True
 )
 def handle_model_delete_flow(delete_btns, confirm_click, cancel_click, stored_model_id, session_data):
-    """Unified handler for delete button, confirm and cancel actions.
-
-    Returns:
-      is_open (bool): whether modal is open
-      model_id (any): stored model id (or None)
-      toast_open (bool): whether to show toast
-      toast_children (str|html): toast content
-      toast_icon (str): 'success'|'danger'
-    """
-    trigger = ctx.triggered_id
-    # Use callback_context to determine which input fired and its value
+    """Unified handler for delete button, confirm and cancel actions."""
+    
     triggered = dash.callback_context.triggered
     if not triggered:
         raise dash.exceptions.PreventUpdate
+    
     fired = triggered[0]
-    prop = fired.get('prop_id', '')
+    prop_id = fired.get('prop_id', '')
     value = fired.get('value', None)
-
-    # Normalize trigger id into python object when pattern-matching ids are used
-    try:
-        trigger = json.loads(prop.split('.')[0].replace("'", '"'))
-    except Exception:
-        trigger = prop
-
-    # Delete button clicked -> open modal and store id
-    if isinstance(trigger, dict) and trigger.get('type') == 'admin-model-delete-btn':
-        # find which button triggered and extract its index
+    
+    # Check which input was triggered
+    if 'admin-model-delete-btn' in prop_id:
+        # Delete button clicked -> open modal and store id
+        if not value or value < 1:
+            raise dash.exceptions.PreventUpdate
         try:
-            # use dash.callback_context to find the prop_id
-            btn_id = prop.split('.')[0]
-            btn_obj = json.loads(btn_id.replace("'", '"'))
-            model_id = btn_obj.get('index')
-        except Exception:
+            trigger_obj = json.loads(prop_id.split('.')[0].replace("'", '"'))
+            model_id = trigger_obj.get('index')
+            return True, model_id, False, '', 'success'
+        except Exception as e:
+            print(f"Error parsing delete btn: {e}")
             raise dash.exceptions.PreventUpdate
-        # Only open modal when the button click value is truthy (prevents opens on layout updates)
-        if not value:
+    
+    elif 'confirm-delete-model' in prop_id:
+        # Confirm clicked -> perform delete
+        if not stored_model_id or not session_data:
             raise dash.exceptions.PreventUpdate
-        return True, model_id, False, '', 'success'
-
-    # Confirm clicked -> perform delete
-    if trigger == 'confirm-delete-model' or (isinstance(trigger, dict) and trigger.get('id') == 'confirm-delete-model'):
-        model_id = stored_model_id
-        # Only act when confirm button has a truthy click value
-        if not value or not model_id or not session_data:
-            raise dash.exceptions.PreventUpdate
+        
         token = session_data.get('token')
         try:
-            success, message = api_models.delete_model(model_id, token=token)
+            success, message = api_models.delete_model(int(stored_model_id), token=token)
         except Exception as e:
             success = False
-            message = str(e)
-        # Close modal, clear stored id, show delete-toast (index 0)
+            message = f"Lỗi: {str(e)}"
+        
         return False, None, True, message, 'success' if success else 'danger'
-
-    # Cancel clicked -> close modal without action
-    if trigger == 'cancel-delete-model' or (isinstance(trigger, dict) and trigger.get('id') == 'cancel-delete-model'):
-        # Only act when cancel button has a truthy click value
-        if not value:
-            raise dash.exceptions.PreventUpdate
+    
+    elif 'cancel-delete-model' in prop_id:
+        # Cancel clicked -> close modal without action
         return False, None, False, '', 'success'
-
-    # Default: prevent update
+    
     raise dash.exceptions.PreventUpdate
 
 

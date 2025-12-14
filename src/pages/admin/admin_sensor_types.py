@@ -156,6 +156,7 @@ def create_add_sensor_type_modal():
 layout = html.Div([
     create_navbar(is_authenticated=True, is_admin=True),
     dcc.Location(id='admin-sensor-types-url', refresh=False),
+    dcc.Store(id='session-store', storage_type='session'),
     dcc.Store(id='user-options-store', data=[]),
     dcc.Store(id='pump-options-store', data=[]),
     dbc.Container([
