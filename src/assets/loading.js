@@ -1,4 +1,5 @@
 window.addEventListener("load", function () {
+    /*
     try {
         if (!navigator.geolocation) {
             console.log("Geolocation not supported");
@@ -22,4 +23,5 @@ window.addEventListener("load", function () {
     } catch (e) {
         console.log("Error in geolocation script", e);
     }
+    */
 });

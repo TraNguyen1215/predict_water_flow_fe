@@ -2579,7 +2579,7 @@ textarea {
 }
 
 .offcanvas-body {
-    padding: 0.5rem 1rem;
+    padding: 50px 1rem 0.5rem 1rem;
 }
 
 /* Empty notification state */

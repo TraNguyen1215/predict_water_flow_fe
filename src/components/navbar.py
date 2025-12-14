@@ -199,16 +199,27 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
                     dbc.Button("Đánh dấu tất cả đã đọc", id='mark-all-read-btn', color='light', size='sm', className='text-muted me-2'),
                     dbc.Button("Xóa tất cả", id='delete-all-notifications-btn', color='light', size='sm', className='text-danger'),
                 ], width='auto', className='ms-auto')
-            ], className='align-items-center mb-3')
-        ], className='border-bottom pb-3'),
+            ], className='align-items-center mb-2')
+        ], className='border-bottom'),
         html.Div(id='notifications-list-container', children=[
             dcc.Loading(id='notifications-loading', type='default', children=[
                 html.Div(id='notifications-list')
             ])
-        ], style={'maxHeight': '600px', 'overflowY': 'auto', 'padding': '1rem'}),
+        ], style={'maxHeight': '670px', 'overflowY': 'auto', 'padding': '1rem'}),
         dcc.Interval(id='notifications-refresh-interval', interval=10*1000, n_intervals=0),
         dcc.Store(id='notifications-store', data={'data': [], 'total': 0})
     ], id='notifications-offcanvas', is_open=False, placement='end', backdrop=True, scrollable=True, style={'width': '400px'})
+
+    notification_detail_modal = dbc.Modal([
+        dbc.ModalHeader(dbc.ModalTitle(id='notification-detail-title')),
+        dbc.ModalBody([
+            html.H6(id='notification-detail-time', className='text-muted small mb-3'),
+            html.Div(id='notification-detail-content')
+        ]),
+        dbc.ModalFooter(
+            dbc.Button("Đóng", id='notification-detail-close', className='ms-auto', n_clicks=0)
+        )
+    ], id='notification-detail-modal', is_open=False, centered=True)
 
     root = html.Div([
         dcc.Location(id='account-url', refresh=False),
@@ -216,7 +227,8 @@ def create_navbar(is_authenticated=False, is_admin=False, current_path: str = No
         account_modal,
         change_pwd_modal,
         settings_modal,
-        notifications_modal
+        notifications_modal,
+        notification_detail_modal
     ])
 
     return root
@@ -328,6 +340,8 @@ def update_notifications(n_intervals, is_open, session_data):
     prevent_initial_call=False
 )
 def render_notifications(notifications_data):
+    from datetime import datetime, timedelta
+    
     if not notifications_data or not isinstance(notifications_data, dict):
         return dbc.Alert("Không có thông báo", color="info", className="text-center mt-4")
     
@@ -336,15 +350,46 @@ def render_notifications(notifications_data):
     if not notifications:
         return dbc.Alert("Không có thông báo", color="info", className="text-center mt-4")
     
-    notification_items = []
+    # Sort notifications by date desc
+    def parse_date(n):
+        try:
+            return datetime.strptime(n.get('created_at', ''), '%H:%M %d/%m/%Y')
+        except:
+            return datetime.min
+            
+    notifications.sort(key=parse_date, reverse=True)
+    
+    content = []
+    current_date_key = None
+    
     for notif in notifications:
+        created_at_str = notif.get('created_at', '')
+        date_key = 'Khác'
+        try:
+            if created_at_str:
+                dt = datetime.strptime(created_at_str, '%H:%M %d/%m/%Y')
+                today = datetime.now().date()
+                notif_date = dt.date()
+                
+                if notif_date == today:
+                    date_key = 'Hôm nay'
+                elif (today - notif_date).days == 1:
+                    date_key = 'Hôm qua'
+                else:
+                    date_key = notif_date.strftime('%d/%m/%Y')
+        except:
+            pass
+            
+        if date_key != current_date_key:
+            content.append(html.H6(date_key, className='text-muted mt-3 mb-2 ps-2 fw-bold small text-uppercase'))
+            current_date_key = date_key
+            
         is_read = notif.get('is_read', True)
         notif_id = notif.get('id') or notif.get('ma_thong_bao')
         
-        badge_color = 'light' if is_read else 'primary'
         badge_class = 'unread' if not is_read else ''
         
-        notification_items.append(
+        content.append(
             dbc.Card([
                 dbc.CardBody([
                     dbc.Row([
@@ -352,32 +397,31 @@ def render_notifications(notifications_data):
                             html.Div([
                                 html.H6(
                                     notif.get('title', 'Thông báo'),
-                                    className='mb-1 fw-bold' if not is_read else 'mb-1'
+                                    className='mb-1 fw-bold text-truncate' if not is_read else 'mb-1 text-truncate',
+                                    style={'maxWidth': '100%'}
                                 ),
                                 html.P(
                                     notif.get('message', ''),
-                                    className='mb-2 small text-muted',
-                                    style={'fontSize': '0.85rem'}
+                                    className='mb-1 small text-muted text-truncate',
+                                    style={'fontSize': '0.85rem', 'maxWidth': '100%'}
                                 ),
                                 html.Small(
                                     notif.get('created_at', 'N/A'),
-                                    className='text-muted'
+                                    className='text-muted small'
                                 )
-                            ])
-                        ], width=True),
+                            ], id={'type': 'read-notification', 'index': notif_id}, n_clicks=0, style={'cursor': 'pointer'})
+                        ], width=True, style={'minWidth': 0}),
                         dbc.Col([
-                            dbc.ButtonGroup([
-                                dbc.Button(
-                                    html.I(className='fas fa-times'),
-                                    id={'type': 'delete-notification', 'index': notif_id},
-                                    color='light',
-                                    size='sm',
-                                    className='text-danger',
-                                    n_clicks=0
-                                )
-                            ], size='sm')
-                        ], width='auto', className='text-end')
-                    ], className='align-items-start')
+                            dbc.Button(
+                                html.I(className='fas fa-times'),
+                                id={'type': 'delete-notification', 'index': notif_id},
+                                color='link',
+                                size='sm',
+                                className='text-danger text-decoration-none p-0',
+                                n_clicks=0
+                            )
+                        ], width='auto', className='ps-2')
+                    ], className='align-items-start flex-nowrap')
                 ], className='p-3')
             ], className=f'mb-2 notification-item {badge_class}', style={
                 'borderLeft': '4px solid #0d6efd' if not is_read else '4px solid #e9ecef',
@@ -385,7 +429,7 @@ def render_notifications(notifications_data):
             })
         )
     
-    return notification_items
+    return content
 
 
 @callback(
@@ -433,6 +477,82 @@ def delete_notification_item(delete_clicks, notifications_data, session_data):
             return notifications, badge_text, badge_style
     except Exception as e:
         print(f"Error deleting notification: {str(e)}")
+    
+    raise dash.exceptions.PreventUpdate
+
+
+@callback(
+    [Output('notifications-store', 'data', allow_duplicate=True),
+     Output('notification-badge', 'children', allow_duplicate=True),
+     Output('notification-badge', 'style', allow_duplicate=True),
+     Output('notification-detail-modal', 'is_open'),
+     Output('notification-detail-title', 'children'),
+     Output('notification-detail-content', 'children'),
+     Output('notification-detail-time', 'children')],
+    [Input({'type': 'read-notification', 'index': dash.ALL}, 'n_clicks'),
+     Input('notification-detail-close', 'n_clicks')],
+    [State('notifications-store', 'data'),
+     State('session-store', 'data'),
+     State('notification-detail-modal', 'is_open')],
+    prevent_initial_call=True
+)
+def mark_notification_read_item(read_clicks, close_click, notifications_data, session_data, is_open):
+    from api.notification import mark_notification_as_read, get_unread_count, get_notifications
+    
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+        
+    trig_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Handle close button
+    if trig_id == 'notification-detail-close':
+        return dash.no_update, dash.no_update, dash.no_update, False, dash.no_update, dash.no_update, dash.no_update
+
+    # Handle read click
+    if not read_clicks or sum(read_clicks) == 0:
+        raise dash.exceptions.PreventUpdate
+    
+    try:
+        import json
+        obj = json.loads(trig_id)
+        notif_id = obj.get('index')
+        
+        # Find notification details
+        notifications = notifications_data.get('data', [])
+        target_notif = next((n for n in notifications if (n.get('id') == notif_id or n.get('ma_thong_bao') == notif_id)), None)
+        
+        modal_title = "Thông báo"
+        modal_content = "Không tìm thấy nội dung"
+        modal_time = ""
+        
+        if target_notif:
+            modal_title = target_notif.get('title', 'Thông báo')
+            modal_content = target_notif.get('message', '')
+            modal_time = target_notif.get('created_at', '')
+        
+        token = None
+        if session_data and isinstance(session_data, dict):
+            token = session_data.get('token')
+        
+        if token and notif_id:
+            mark_notification_as_read(notif_id, token=token)
+            
+            # Refresh notifications
+            notifications = get_notifications(limit=50, offset=0, token=token)
+            unread_count = get_unread_count(token=token)
+            
+            badge_style = {'display': 'none', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+            badge_text = '0'
+            
+            if unread_count > 0:
+                badge_text = str(unread_count) if unread_count <= 99 else '99+'
+                badge_style = {'display': 'block', 'fontSize': '0.65rem', 'padding': '0.25rem 0.4rem'}
+            
+            return notifications, badge_text, badge_style, True, modal_title, modal_content, modal_time
+            
+    except Exception as e:
+        print(f"Error marking notification as read: {str(e)}")
     
     raise dash.exceptions.PreventUpdate
 

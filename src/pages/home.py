@@ -188,6 +188,13 @@ layout = html.Div([
     create_navbar(is_authenticated=False),
 
     dbc.Container([
+        # Welcome Header
+        dbc.Row([
+            dbc.Col([
+                html.H4(id='home-welcome-message', className="mb-4 fw-bold", style={'color': '#023E73'})
+            ])
+        ]),
+
         # Top small stat cards (four across)
         dbc.Row([
             dbc.Col([
@@ -213,7 +220,7 @@ layout = html.Div([
                                 html.Div([
                                     html.H6("Độ Ẩm Đất", className="stat-label"),
                                     html.H3(id='soil-moisture', children="N/A", className="stat-value"),
-                                    html.Small("%", className="stat-desc text-muted")
+                                    html.Small(id='soil-moisture-desc', children="%", className="stat-desc text-muted")
                                 ]),
                                 html.I(className="fas fa-seedling stat-icon text-success")
                             ], className="stat-card-content")
@@ -232,7 +239,7 @@ layout = html.Div([
                             html.Div([
                                 html.H6("Độ Ẩm Không Khí", className="stat-label"),
                                 html.H3(id='humidity', children="N/A", className="stat-value"),
-                                html.Small("%", className="stat-desc text-muted")
+                                html.Small(id='humidity-desc', children="%", className="stat-desc text-muted")
                             ]),
                             html.I(className="fas fa-wind stat-icon text-primary")
                         ], className="stat-card-content")
@@ -247,7 +254,7 @@ layout = html.Div([
                             html.Div([
                                 html.H6("Nhiệt Độ", className="stat-label"),
                                 html.H3(id='temperature', children="N/A", className="stat-value"),
-                                html.Small("°C", className="stat-desc text-muted")
+                                html.Small(id='temperature-desc', children="°C", className="stat-desc text-muted")
                             ]),
                             html.I(className="fas fa-temperature-high stat-icon text-danger")
                         ], className="stat-card-content")
@@ -339,7 +346,7 @@ layout = html.Div([
                                 style={'padding': '0', 'font-size': '0.875rem'}
                             )
                         ], style={'display': 'flex', 'justify-content': 'space-between', 'align-items': 'center', 'margin-bottom': '15px'}),
-                        html.Div(id='pump-history', children=[
+                        html.Div(id='home-pump-history', children=[
                             html.Small('Không có hoạt động gần đây', className='text-muted', style={'display': 'block'})
                         ])
                     ])
@@ -416,8 +423,11 @@ layout = html.Div([
     [
         Output('flow-rate', 'children'),
         Output('soil-moisture', 'children'),
+        Output('soil-moisture-desc', 'children'),
         Output('humidity', 'children'),
+        Output('humidity-desc', 'children'),
         Output('temperature', 'children'),
+        Output('temperature-desc', 'children'),
         Output('predicted-flow', 'children'),
         Output('max-flow', 'children'),
         Output('min-flow', 'children'),
@@ -450,9 +460,54 @@ def update_sensor_data(n, pathname, session_modified, session, selected_pump):
         
         # Update stat cards
         flow_rate = f"{df['flow_rate'].iloc[-1]:.1f} L/phút" if not df.empty else "N/A"
-        soil_moisture = f"{df['soil_moisture'].iloc[-1]:.0f}%" if not df.empty else "N/A"
-        humidity = f"{df['humidity'].iloc[-1]:.0f}%" if not df.empty else "N/A"
-        temperature = f"{df['temperature'].iloc[-1]:.1f}°C" if not df.empty else "N/A"
+        
+        soil_moisture_val = df['soil_moisture'].iloc[-1] if not df.empty else 0
+        soil_moisture = f"{soil_moisture_val:.0f}%" if not df.empty else "N/A"
+        
+        soil_moisture_desc = "%"
+        if not df.empty:
+            if pd.isna(soil_moisture_val):
+                soil_moisture_desc = "%"
+            elif soil_moisture_val < 20:
+                soil_moisture_desc = "Đất rất khô"
+            elif 20 <= soil_moisture_val < 40:
+                soil_moisture_desc = "Đất khô"
+            elif 40 <= soil_moisture_val < 60:
+                soil_moisture_desc = "Đất bình thường"
+            elif 60 <= soil_moisture_val < 80:
+                soil_moisture_desc = "Đất ẩm"
+            else:
+                soil_moisture_desc = "Đất ướt/bão hòa"
+
+        humidity_val = df['humidity'].iloc[-1] if not df.empty else 0
+        humidity = f"{humidity_val:.0f}%" if not df.empty else "N/A"
+        
+        humidity_desc = "%"
+        if not df.empty:
+            if pd.isna(humidity_val):
+                humidity_desc = "%"
+            elif humidity_val < 30:
+                humidity_desc = "Không khí khô"
+            elif 30 <= humidity_val < 70:
+                humidity_desc = "Lý tưởng"
+            else:
+                humidity_desc = "Không khí ẩm"
+
+        temperature_val = df['temperature'].iloc[-1] if not df.empty else 0
+        temperature = f"{temperature_val:.1f}°C" if not df.empty else "N/A"
+        
+        temperature_desc = "°C"
+        if not df.empty:
+            if pd.isna(temperature_val):
+                temperature_desc = "°C"
+            elif temperature_val < 15:
+                temperature_desc = "Lạnh"
+            elif 15 <= temperature_val < 25:
+                temperature_desc = "Mát mẻ"
+            elif 25 <= temperature_val < 35:
+                temperature_desc = "Bình thường"
+            else:
+                temperature_desc = "Nóng"
         
         # Calculate flow stats
         avg_flow = df['flow_rate'].mean() if not df.empty else 0
@@ -501,8 +556,11 @@ def update_sensor_data(n, pathname, session_modified, session, selected_pump):
         return (
             flow_rate,
             soil_moisture,
+            soil_moisture_desc,
             humidity,
+            humidity_desc,
             temperature,
+            temperature_desc,
             predicted_flow,
             max_flow,
             min_flow,
@@ -674,10 +732,10 @@ def update_pump_control_panel(selected_pump, n_intervals, toggle_value, auto_mod
                 mode = pump_info.get('che_do', 0)  # Revert to API value
             else:
                 mode = new_mode
-                mode_text = "Tự động (theo độ ẩm đất)" if new_mode == 1 else "Thủ công"
+                mode_text = "Tự động" if new_mode == 1 else "Thủ công"
         else:
             mode = pump_info.get('che_do', 0)
-            mode_text = "Tự động (theo độ ẩm đất)" if mode == 1 else "Thủ công"
+            mode_text = "Tự động" if mode == 1 else "Thủ công"
 
         pump_toggle = [1] if status in (True, 1) else []
         auto_mode_toggle = [1] if mode == 1 else []
@@ -693,7 +751,7 @@ def update_pump_control_panel(selected_pump, n_intervals, toggle_value, auto_mod
         return (pump_name, [], False, "Lỗi", [], "Lỗi")
 
 @callback(
-    Output('pump-history', 'children'),
+    Output('home-pump-history', 'children'),
     [
         Input('selected-pump-store', 'data'),
         Input('interval-component', 'n_intervals'),
@@ -926,18 +984,6 @@ def update_pump_history_modal(is_open, selected_pump, session):
         return [html.P("Lỗi tải dữ liệu", className="text-danger text-center")]
 
 @callback(
-    Output('pump-history-date-picker', 'date'),
-    [
-        Input('pump-history-modal', 'is_open'),
-    ]
-)
-def init_date_picker(is_open):
-    """Initialize date picker with today's date when modal opens."""
-    if is_open:
-        return datetime.now().strftime('%Y-%m-%d')
-    raise PreventUpdate
-
-@callback(
     Output('soil-moisture-date-picker', 'date'),
     [
         Input('soil-moisture-modal', 'is_open'),
@@ -1057,3 +1103,28 @@ def update_soil_moisture_chart(is_open, selected_date, session):
             )
         }
         return empty_figure, "N/A", "N/A", "N/A"
+
+@callback(
+    Output('home-welcome-message', 'children'),
+    Input('session-store', 'data')
+)
+def update_welcome_message(session_data):
+    if not session_data or not isinstance(session_data, dict):
+        return "Xin chào Khách"
+    
+    token = session_data.get('token')
+    username = session_data.get('username')
+    
+    if not username:
+        return "Xin chào Khách"
+        
+    try:
+        # Try to get full name
+        user_info = get_user(username, token=token)
+        full_name = user_info.get('ho_ten')
+        
+        if full_name:
+            return f"Xin chào {full_name}"
+        return f"Xin chào {username}"
+    except:
+        return f"Xin chào {username}"
