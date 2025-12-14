@@ -868,10 +868,6 @@ body {
     border-color: #cbd5f5;
 }
 
-#esp-firmware-selected {
-    min-height: 1.25rem;
-}
-
 .esp-progress-bar {
     height: 14px;
     background: #e2e8f0;

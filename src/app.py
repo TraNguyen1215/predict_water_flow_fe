@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from flask import session
 import os
 from pages import home, login, register, account, settings, pump_detail, sensor_data, documentation, predict_data, devices
-from pages.admin import *
+from pages.admin import admin, admin_models, admin_users, admin_devices, admin_sensor_types
 from components.navbar import create_navbar
 from components.footer import create_footer
 
@@ -81,11 +81,21 @@ def display_page(pathname, session_data):
             page = predict_data.layout
         else:
             page = login.layout
-    elif pathname == '/admin':
+    elif pathname == '/documentation':
         page = documentation.layout
+    elif pathname == '/admin':
+        if is_authenticated and is_admin:
+            page = admin.layout
+        else:
+            page = login.layout
     elif pathname == '/admin/models':
         if is_authenticated and is_admin:
             page = admin_models.layout
+        else:
+            page = login.layout
+    elif pathname == '/admin/devices':
+        if is_authenticated and is_admin:
+            page = admin_devices.layout
         else:
             page = login.layout
     elif pathname == '/admin/sensor-types':
@@ -96,11 +106,6 @@ def display_page(pathname, session_data):
     elif pathname == '/admin/users':
         if is_authenticated and is_admin:
             page = admin_users.layout
-        else:
-            page = login.layout
-    elif pathname == '/admin' or (pathname and pathname.startswith('/admin')):
-        if is_authenticated and is_admin:
-            page = admin.layout
         else:
             page = login.layout
     else:

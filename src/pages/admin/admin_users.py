@@ -487,15 +487,13 @@ def open_user_modal_users(edit_clicks, users, session_data, current):
         if btn.startswith('{') and 'edit-user-users' in btn:
             import json
             obj = json.loads(btn)
-            identifier = obj.get('username')
+            identifier = obj.get('index')
             u = None
             for candidate in users or []:
-                primary_key = candidate.get('index')
-                if primary_key is not None and str(primary_key) == str(identifier):
+                candidate_username = candidate.get('ten_dang_nhap') or candidate.get('username')
+                if str(candidate_username) == str(identifier):
                     u = candidate
                     break
-            if u is None:
-                u = next((x for x in (users or []) if (x.get('username') == identifier)), None)
             if not u:
                 return False, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -598,7 +596,7 @@ def handle_modals_users(cancel_user, cancel_delete, delete_clicks, current, user
         if btn.startswith('{') and 'delete-user-users' in btn:
             import json
             obj = json.loads(btn)
-            username = obj.get('ten_dang_nhap') or obj.get('index')
+            username = obj.get('index')
             return dash.no_update, True, username, f"Bạn có chắc chắn muốn xóa người dùng '{username}'?"
     except Exception:
         pass

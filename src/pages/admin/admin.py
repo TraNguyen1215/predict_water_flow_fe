@@ -6,7 +6,6 @@ from api import user as api_user
 from api import sensor as api_sensor
 from api import pump as api_pump
 from api import sensor_data as api_sensor_data
-from api import firmware as api_firmware
 from api import models as api_models
 import pandas as pd
 import plotly.express as px
@@ -242,23 +241,9 @@ def load_admin_dashboard(pathname, session_data):
     except Exception:
         model_items = []
 
-    # Count uploaded firmware / embedded files
-    try:
-        firmwares = api_firmware.list_firmwares(limit=500, offset=0, token=token) or {}
-        if isinstance(firmwares, dict):
-            firmware_items = firmwares.get('data', []) or []
-            total_firmwares = firmwares.get('total') or len(firmware_items)
-        elif isinstance(firmwares, list):
-            firmware_items = firmwares
-            total_firmwares = len(firmware_items)
-        else:
-            firmware_items = []
-            total_firmwares = 0
-    except Exception:
-        firmware_items = []
-        total_firmwares = 0
 
-    # Build summary cards: Active users, Total devices, Sensor types, Models, Firmware files
+
+    # Build summary cards: Active users, Total devices, Sensor types, Models
     summary_cards = html.Div([
         html.Div(dbc.Card(dbc.CardBody([
             html.Div([
@@ -304,16 +289,7 @@ def load_admin_dashboard(pathname, session_data):
             ], className='d-flex justify-content-between align-items-start')
         ])), style={'flex': '1 1 0', 'minWidth': '160px'}),
 
-        html.Div(dbc.Card(dbc.CardBody([
-            html.Div([
-                html.Div([
-                    html.Span('Tổng tệp mã nhúng', className='admin-summary-title'),
-                    html.H3(str(total_firmwares), className='admin-summary-value'),
-                    html.Span(f'Trên tổng số {len(firmware_items)} tệp', className='admin-summary-subtitle')
-                ]),
-                html.Div(html.I(className='fas fa-file-code'), className='admin-summary-icon bg-admin-secondary')
-            ], className='d-flex justify-content-between align-items-start')
-        ])), style={'flex': '1 1 0', 'minWidth': '160px'})
+
     ], style={'display': 'flex', 'gap': '12px', 'alignItems': 'stretch', 'flexWrap': 'nowrap'})
 
     def _style_figure(fig):

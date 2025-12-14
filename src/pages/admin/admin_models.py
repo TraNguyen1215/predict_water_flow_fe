@@ -236,7 +236,7 @@ def update_models_table(n_intervals, pathname, session_data):
             html.Th('Hành động')
         ])),
         html.Tbody(rows)
-    ], bordered=False, hover=True, responsive=True, className='user-table firmware-table')
+    ], bordered=False, hover=True, responsive=True, className='user-table')
 
     table_card = dbc.Card([
         dbc.CardHeader(html.Span('Danh sách mô hình', className='user-table-title')),
